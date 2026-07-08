@@ -7,6 +7,12 @@ function renderNavigation() {
   const filename = currentPath.substring(currentPath.lastIndexOf('/') + 1);
 
   // Tentar obter usuário do localStorage
+  // Evitar duplicações limpando elementos existentes
+  document.querySelector(".desktop-navbar")?.remove();
+  document.querySelector(".mobile-header")?.remove();
+  document.querySelector(".drawer-backdrop")?.remove();
+  document.querySelector(".mobile-drawer")?.remove();
+
   let user = null;
   try {
     const userStr = localStorage.getItem("user");

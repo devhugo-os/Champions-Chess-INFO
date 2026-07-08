@@ -87,31 +87,27 @@ window.addEventListener("DOMContentLoaded", () => {
               participantStatus: participantStatus
             };
             localStorage.setItem("user", JSON.stringify(userLocal));
+            if (typeof renderNavigation === "function") {
+              renderNavigation();
+            }
           });
         } else {
-          // Se não existir, cria o perfil básico
+          // Se não existir, não cria automático. Redireciona para o setup do nickname.
           const userLocal = {
             uid: user.uid,
-            name: name,
+            name: "Novo Enxadrista",
             email: user.email,
             avatarBase64: avatarBase64,
             role: "spectator",
             isAdmin: false,
-            participantStatus: "none"
+            participantStatus: "none",
+            needsSetup: true
           };
           localStorage.setItem("user", JSON.stringify(userLocal));
           
-          // Salva no Firestore
-          window.db.collection("users").doc(user.uid).set({
-            uid: user.uid,
-            name: name,
-            email: user.email,
-            avatarBase64: avatarBase64,
-            points: 1000, // saldo inicial
-            role: "spectator",
-            participantStatus: "none",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
+          if (!window.location.pathname.includes("perfil.html")) {
+            window.location.href = "perfil.html?setup=true";
+          }
         }
       }).catch(err => console.error("Erro ao carregar perfil:", err));
     }

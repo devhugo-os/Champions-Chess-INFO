@@ -75,6 +75,28 @@
     </div>
   </main>
 
+  <!-- Modal de Configuração Obrigatória de Nickname -->
+  <div id="setup-username-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(6, 9, 19, 0.96); backdrop-filter: blur(16px); z-index: 10000; align-items: center; justify-content: center; padding: 20px;">
+    <div class="card" style="max-width: 480px; width: 100%; text-align: center; border: 1px solid var(--accent-color); box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);">
+      <img src="logo.png" style="width: 80px; height: 80px; margin: 0 auto 20px auto; display: block; border-radius: 50%; border: 2px solid var(--accent-color);" alt="Logo"/>
+      <h2 style="margin-bottom: 10px; font-weight: 800; background: linear-gradient(135deg, #ffffff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Escolha seu Nickname</h2>
+      <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">
+        Bem-vindo ao <b>Champions Chess INFO</b>! Para continuar e ter acesso à plataforma, escolha um nome de usuário (nick) exclusivo.
+      </p>
+      
+      <form id="setup-username-form" style="text-align: left;">
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label for="setup-name" style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">Nome de Usuário (Nick)</label>
+          <input type="text" id="setup-name" class="form-control" placeholder="Apenas letras minúsculas, números e _" required autocomplete="off" style="margin-top: 6px;">
+          <span style="font-size: 11px; color: var(--text-secondary); display: block; margin-top: 6px;">
+            Apenas letras minúsculas, números e sublinhados (_). Este será seu nickname definitivo.
+          </span>
+        </div>
+        <button type="submit" class="btn" style="width: 100%; padding: 12px; font-weight: 800;">Concluir Cadastro</button>
+      </form>
+    </div>
+  </div>
+
   <footer class="site-footer">
     <span>© Champions Chess INFO</span>
   </footer>
@@ -125,12 +147,16 @@
         const docRef = window.db.collection("users").doc(user.uid);
         
         docRef.onSnapshot(async (doc) => {
-          if (!doc.exists) return;
-          
+          if (!doc.exists) {
+            showSetupModal(user);
+            return;
+          }
+
+          document.getElementById("setup-username-modal").style.display = "none";
           profileData = doc.data();
           
           // Preencher formulário
-          document.getElementById("profile-name").value = profileData.displayName || profileData.name;
+          document.getElementById("profile-name").value = profileData.name || "";
           document.getElementById("profile-email").value = profileData.email;
           document.getElementById("profile-points").textContent = profileData.points || 0;
           
@@ -210,7 +236,7 @@
           // Submeter à waitlist
           await window.db.collection("waitlist").doc(uid).set({
             uid: uid,
-            name: profileData.displayName || profileData.name,
+            name: profileData.name || "",
             email: profileData.email,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
@@ -318,6 +344,78 @@
           // Mostrar apenas na pré-visualização (ainda não salvo no DB)
           document.getElementById("avatar-img").src = selectedAvatarBase64;
         };
+      };
+    }
+
+    function showSetupModal(user) {
+      const modal = document.getElementById("setup-username-modal");
+      modal.style.display = "flex";
+
+      const form = document.getElementById("setup-username-form");
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const chosenName = document.getElementById("setup-name").value.trim().toLowerCase();
+        
+        // Validar nick
+        const nicknamePattern = /^[a-z0-9_]+$/;
+        if (!nicknamePattern.test(chosenName)) {
+          alert("O nome de usuário deve conter apenas letras minúsculas, números e sublinhados (_). Sem espaços ou acentos.");
+          return;
+        }
+
+        const submitBtn = form.querySelector("button");
+        submitBtn.disabled = true;
+
+        try {
+          // Verificar se o nome já existe
+          const checkSnap = await window.db.collection("users").where("name", "==", chosenName).get();
+          let isTaken = false;
+          checkSnap.forEach(d => {
+            isTaken = true;
+          });
+
+          if (isTaken) {
+            alert("Este nome de usuário já está em uso por outro enxadrista. Escolha outro!");
+            submitBtn.disabled = false;
+            return;
+          }
+
+          // Criar o documento no Firestore
+          await window.db.collection("users").doc(user.uid).set({
+            uid: user.uid,
+            name: chosenName,
+            email: user.email,
+            avatarBase64: "https://lh3.googleusercontent.com/a/default-user=s96-c",
+            points: 1000,
+            role: "spectator",
+            participantStatus: "none",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          // Atualizar localStorage
+          const userLocal = {
+            uid: user.uid,
+            name: chosenName,
+            email: user.email,
+            avatarBase64: "https://lh3.googleusercontent.com/a/default-user=s96-c",
+            role: "spectator",
+            isAdmin: false,
+            participantStatus: "none"
+          };
+          localStorage.setItem("user", JSON.stringify(userLocal));
+          
+          if (typeof renderNavigation === "function") {
+            renderNavigation();
+          }
+
+          modal.style.display = "none";
+          alert("Cadastro concluído com sucesso! Bem-vindo!");
+        } catch (error) {
+          console.error("Erro ao criar cadastro:", error);
+          alert("Erro ao criar cadastro.");
+          submitBtn.disabled = false;
+        }
       };
     }
   </script>

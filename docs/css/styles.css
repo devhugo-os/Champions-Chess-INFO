@@ -359,8 +359,8 @@ body.desktop-mode .desktop-navbar {
   flex-shrink: 0;
 }
 .desktop-navbar .logo-area img {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 1px solid var(--border-color);
   transition: all 0.3s ease;
@@ -451,8 +451,8 @@ body.mobile-mode .mobile-header {
   cursor: pointer;
 }
 .mobile-header .logo-area img {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
 }
 .mobile-header .logo-area strong {
