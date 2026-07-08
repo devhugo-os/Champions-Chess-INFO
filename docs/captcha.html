@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificação de Segurança - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body style="background: var(--bg-primary);">
+  
+  <div class="captcha-container">
+    <div class="card captcha-card">
+      <h2 style="color: var(--accent-color); border: none; padding-bottom: 0; justify-content: center;">Verificação Anti-Robô</h2>
+      <p style="margin-bottom: 20px;">Por favor, prove que você é um humano resolvendo a equação simples abaixo para liberar o acesso ao Champions Chess INFO.</p>
+      
+      <div id="captcha-question" class="math-expr">Carregando...</div>
+      
+      <form id="captcha-form">
+        <div class="form-group">
+          <input type="number" id="captcha-answer" class="form-control" placeholder="Digite o resultado aqui..." required autocomplete="off">
+        </div>
+        <button type="submit" class="btn" style="width: 100%;">Liberar Acesso</button>
+      </form>
+      
+      <p id="captcha-error" style="color: var(--danger-color); margin-top: 14px; display: none;"></p>
+    </div>
+  </div>
+
+  <script>
+    // Carregar pergunta do Captcha ao carregar página
+    document.addEventListener("DOMContentLoaded", fetchCaptcha);
+
+    async function fetchCaptcha() {
+      try {
+        const res = await fetch("/api/captcha/question");
+        const data = await res.json();
+        document.getElementById("captcha-question").textContent = data.question;
+      } catch (error) {
+        document.getElementById("captcha-question").textContent = "Erro ao carregar";
+      }
+    }
+
+    document.getElementById("captcha-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const answer = document.getElementById("captcha-answer").value;
+      const errorEl = document.getElementById("captcha-error");
+      
+      try {
+        const res = await fetch("/api/captcha/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answer })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          window.location.href = "/";
+        } else {
+          errorEl.textContent = data.error || "Resposta incorreta.";
+          errorEl.style.display = "block";
+          document.getElementById("captcha-answer").value = "";
+          fetchCaptcha();
+        }
+      } catch (error) {
+        errorEl.textContent = "Erro de conexão. Tente novamente.";
+        errorEl.style.display = "block";
+      }
+    });
+  </script>
+
+  <script src="/js/security.js"></script>
+</body>
+</html>

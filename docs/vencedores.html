@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campeões - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .winners-podium {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 16px;
+      margin: 30px 0;
+      padding: 20px 10px;
+    }
+    .podium-place {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      text-align: center;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: var(--shadow-sm);
+    }
+    .place-1 {
+      height: 180px;
+      width: 140px;
+      border-color: #ffd700;
+      background: linear-gradient(180deg, rgba(255, 215, 0, 0.05), var(--bg-secondary));
+    }
+    .place-2 {
+      height: 140px;
+      width: 120px;
+      border-color: #c0c0c0;
+      background: linear-gradient(180deg, rgba(192, 192, 192, 0.05), var(--bg-secondary));
+    }
+    .place-3 {
+      height: 110px;
+      width: 110px;
+      border-color: #cd7f32;
+      background: linear-gradient(180deg, rgba(205, 127, 50, 0.05), var(--bg-secondary));
+    }
+    .crown {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="container">
+    <!-- Visual Pódio dos Campeões -->
+    <div class="card" style="text-align: center;">
+      <h2>🏆 Galeria de Campeões</h2>
+      <p style="margin-bottom: 20px;">Homenagem aos enxadristas que conquistaram o topo do torneio oficial.</p>
+
+      <div class="winners-podium">
+        <!-- 2º Lugar -->
+        <div class="podium-place place-2">
+          <span style="font-size:24px;">🥈</span>
+          <div style="font-size: 11px; text-transform: uppercase; color:var(--text-secondary); margin-top:8px;">Vice-Campeão</div>
+          <div style="font-weight:700; font-size:14px; margin-top:4px;" id="podium-2">A definir</div>
+          <div style="font-size:10px; color:var(--text-secondary); margin-top:4px;">Edição #1</div>
+        </div>
+        
+        <!-- 1º Lugar -->
+        <div class="podium-place place-1">
+          <span class="crown">👑</span>
+          <div style="font-size: 11px; text-transform: uppercase; color:#ffd700; font-weight:700;">Campeão</div>
+          <div style="font-weight:800; font-size:16px; margin-top:4px; color:#ffd700;" id="podium-1">A definir</div>
+          <div style="font-size:10px; color:var(--text-secondary); margin-top:4px;">Edição #1</div>
+        </div>
+
+        <!-- 3º Lugar -->
+        <div class="podium-place place-3">
+          <span style="font-size:20px;">🥉</span>
+          <div style="font-size: 11px; text-transform: uppercase; color:var(--text-secondary); margin-top:8px;">3º Colocado</div>
+          <div style="font-weight:700; font-size:13px; margin-top:4px;" id="podium-3">A definir</div>
+          <div style="font-size:10px; color:var(--text-secondary); margin-top:4px;">Edição #1</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de Títulos por Edição -->
+    <div class="card" style="margin-top: 24px;">
+      <h2>📜 Histórico de Edições</h2>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Torneio</th>
+              <th>Campeão 🥇</th>
+              <th>Vice-Campeão 🥈</th>
+              <th>3º Colocado 🥉</th>
+            </tr>
+          </thead>
+          <tbody id="editions-history-body">
+            <tr>
+              <td colspan="4" style="text-align: center;" class="text-secondary">Nenhum torneio finalizado até o momento.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <script src="/js/navigation.js"></script>
+  <script src="/js/security.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", loadWinnersData);
+
+    async function loadWinnersData() {
+      try {
+        const matchesRes = await fetch("/api/matches");
+        const allMatches = await matchesRes.json();
+
+        const playersRes = await fetch("/api/players");
+        const players = await playersRes.json();
+        const playersMap = {};
+        players.forEach(p => { playersMap[p.id] = p.name; });
+
+        // Verificar finalistas do torneio
+        const finalMatch = allMatches.find(m => m.stage === "final" && m.status === "finished");
+        const thirdPlaceMatch = allMatches.find(m => m.stage === "third" && m.status === "finished");
+
+        if (finalMatch) {
+          const champId = finalMatch.result === "A" ? finalMatch.aId : (finalMatch.result === "B" ? finalMatch.bId : null);
+          const viceId = finalMatch.result === "A" ? finalMatch.bId : (finalMatch.result === "B" ? finalMatch.aId : null);
+          
+          if (champId) {
+            document.getElementById("podium-1").textContent = playersMap[champId] || "Campeão";
+          }
+          if (viceId) {
+            document.getElementById("podium-2").textContent = playersMap[viceId] || "Vice-Campeão";
+          }
+        }
+
+        if (thirdPlaceMatch) {
+          const thirdId = thirdPlaceMatch.result === "A" ? thirdPlaceMatch.aId : (thirdPlaceMatch.result === "B" ? thirdPlaceMatch.bId : null);
+          if (thirdId) {
+            document.getElementById("podium-3").textContent = playersMap[thirdId] || "3º Colocado";
+          }
+        }
+
+        // Se houver final resolvido, insere no histórico
+        if (finalMatch && thirdPlaceMatch) {
+          const champ = playersMap[finalMatch.result === "A" ? finalMatch.aId : finalMatch.bId] || "—";
+          const vice = playersMap[finalMatch.result === "A" ? finalMatch.bId : finalMatch.aId] || "—";
+          const third = playersMap[thirdPlaceMatch.result === "A" ? thirdPlaceMatch.aId : thirdPlaceMatch.bId] || "—";
+
+          document.getElementById("editions-history-body").innerHTML = `
+            <tr>
+              <td><b>Champions Chess INFO #1</b></td>
+              <td style="color:#ffd700; font-weight:700;">🥇 ${champ}</td>
+              <td style="color:#c0c0c0; font-weight:700;">🥈 ${vice}</td>
+              <td style="color:#cd7f32; font-weight:700;">🥉 ${third}</td>
+            </tr>
+          `;
+        }
+
+      } catch (error) {
+        console.error("Erro ao obter dados de campeões:", error);
+      }
+    }
+  </script>
+</body>
+</html>

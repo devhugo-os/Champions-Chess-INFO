@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partidas - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <main class="container">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--border-color); padding-bottom:12px; margin-bottom:16px;">
+        <h2 style="border:none; padding-bottom:0; margin-bottom:0;">⚔️ Partidas do Torneio</h2>
+        <div>
+          <select id="filter-stage" class="form-control" style="width: 180px; padding: 8px;">
+            <option value="all">Todas as Etapas</option>
+            <option value="groups">Fase de Grupos</option>
+            <option value="groupA">Grupo A</option>
+            <option value="groupB">Grupo B</option>
+            <option value="semifinal">Semifinais</option>
+            <option value="final">Finais / 3º Lugar</option>
+          </select>
+        </div>
+      </div>
+      
+      <p style="margin-bottom: 20px;">
+        Abaixo estão os confrontos agendados e os resultados. Se você for participante de uma partida, clique em <b>"Estou Pronto"</b> no horário do jogo para iniciar o matchmaking em tempo real!
+      </p>
+
+      <div id="matches-container" style="display: flex; flex-direction: column; gap: 16px;">
+        <!-- Injetado dinamicamente -->
+        <p class="text-secondary" style="text-align: center;">Carregando confrontos...</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <script src="/js/navigation.js"></script>
+  <script src="/js/security.js"></script>
+
+  <script>
+    let socket;
+    let currentUser = null;
+    let playersMap = {};
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Ler usuário do localStorage
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) currentUser = JSON.parse(userStr);
+      } catch (e) {}
+
+      // Carregar jogadores
+      await loadPlayersMap();
+      
+      // Carregar partidas inicialmente
+      await loadMatches();
+
+      // Configurar Sockets para atualizações em tempo real
+      setupSocket();
+
+      // Listener de Filtro
+      document.getElementById("filter-stage").addEventListener("change", loadMatches);
+    });
+
+    async function loadPlayersMap() {
+      try {
+        const res = await fetch("/api/players");
+        const list = await res.json();
+        list.forEach(p => {
+          playersMap[p.id] = p.name;
+        });
+      } catch (error) {
+        console.error("Erro ao mapear jogadores:", error);
+      }
+    }
+
+    async function loadMatches() {
+      const filterVal = document.getElementById("filter-stage").value;
+      const container = document.getElementById("matches-container");
+      
+      try {
+        const res = await fetch("/api/matches");
+        let list = await res.json();
+
+        // Aplicar filtros
+        if (filterVal === "groups") {
+          list = list.filter(m => m.stage === "groups");
+        } else if (filterVal === "groupA") {
+          list = list.filter(m => m.stage === "groups" && m.group === "A");
+        } else if (filterVal === "groupB") {
+          list = list.filter(m => m.stage === "groups" && m.group === "B");
+        } else if (filterVal === "semifinal") {
+          list = list.filter(m => m.stage === "semifinal");
+        } else if (filterVal === "final") {
+          list = list.filter(m => m.stage === "final" || m.stage === "third");
+        }
+
+        if (list.length === 0) {
+          container.innerHTML = `<p class="text-secondary" style="text-align: center; padding: 24px;">Nenhuma partida encontrada para esta etapa.</p>`;
+          return;
+        }
+
+        container.innerHTML = list.map(m => renderMatchCard(m)).join("");
+      } catch (error) {
+        container.innerHTML = `<p class="text-secondary" style="text-align: center;">Erro ao carregar partidas.</p>`;
+      }
+    }
+
+    function renderMatchCard(m) {
+      const playerAName = playersMap[m.aId] || "A definir";
+      const playerBName = playersMap[m.bId] || "A definir";
+      
+      const dateStr = m.date 
+        ? new Date(m.date).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }) 
+        : "Horário a definir";
+      
+      const stageLabel = m.stage === "groups" ? `Grupo ${m.group}` : m.stage.toUpperCase();
+      
+      // Status badges e resultados
+      let statusHtml = "";
+      let resultHtml = "";
+      let actionHtml = "";
+
+      if (m.status === "finished") {
+        statusHtml = `<span class="badge badge-success">Finalizado</span>`;
+        let winnerText = "Empate";
+        if (m.result === "A") winnerText = `Vitória: ${playerAName}`;
+        else if (m.result === "B") winnerText = `Vitória: ${playerBName}`;
+        resultHtml = `<div style="font-weight:700; color:var(--accent-color); margin-top:8px;">${winnerText}</div>`;
+      } else if (m.status === "live") {
+        statusHtml = `<span class="badge badge-danger" style="animation: pulse 1.5s infinite; background:#ef4444; color:#fff;">AO VIVO</span>`;
+        resultHtml = `<div style="font-weight:700; color:var(--danger-color); margin-top:8px; font-size: 13px;">Partida em andamento. Jogadores em campo!</div>`;
+      } else if (m.result === "postponed") {
+        statusHtml = `<span class="badge badge-warning">Adiado</span>`;
+        resultHtml = `<div style="color:var(--warning-color); margin-top:4px; font-size:12px;">Confronto remarcado pela organização.</div>`;
+      } else {
+        statusHtml = `<span class="badge badge-info">Agendado</span>`;
+      }
+
+      // Se logado e for jogador da partida, mostrar botão pronto
+      if (currentUser && m.status !== "finished" && m.status !== "live" && m.result !== "postponed") {
+        const isPlayerA = m.aId === currentUser.uid;
+        const isPlayerB = m.bId === currentUser.uid;
+        
+        if (isPlayerA || isPlayerB) {
+          const isAlreadyReady = (isPlayerA && m.aReady) || (isPlayerB && m.bReady);
+          
+          if (isAlreadyReady) {
+            actionHtml = `<button class="btn btn-ghost" disabled style="margin-top:12px; width:100%;">Aguardando oponente...</button>`;
+          } else {
+            actionHtml = `<button class="btn" onclick="signalReady('${m.id}')" style="margin-top:12px; width:100%;">Estou Pronto</button>`;
+          }
+        }
+      }
+
+      // Preparação de status de prontidão (matchmaking)
+      let readyIndicators = "";
+      if (m.status !== "finished" && m.status !== "live" && m.result !== "postponed" && (m.aReady || m.bReady)) {
+        readyIndicators = `
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:8px; display:flex; gap:12px;">
+            <span>${playerAName}: ${m.aReady ? '🟢 Pronto' : '⚪ Pendente'}</span>
+            <span>${playerBName}: ${m.bReady ? '🟢 Pronto' : '⚪ Pendente'}</span>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="bet-match-card" id="match-card-${m.id}" style="border: 1px solid var(--border-color); background: rgba(22, 30, 41, 0.4);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; color:var(--text-secondary); font-weight:600;">${dateStr}</span>
+            <span class="badge" style="background:rgba(56,139,253,0.15); color:#58a6ff;">${stageLabel}</span>
+          </div>
+          
+          <div class="versus" style="margin: 8px 0;">
+            <span style="font-size: 15px;">${playerAName}</span>
+            <span class="vs">VS</span>
+            <span style="font-size: 15px;">${playerBName}</span>
+          </div>
+          
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+            ${statusHtml}
+            ${m.code ? `<span style="font-family:monospace; font-size:11px; color:var(--text-secondary);">CÓD: ${m.code}</span>` : ""}
+          </div>
+          
+          ${resultHtml}
+          ${readyIndicators}
+          ${actionHtml}
+        </div>
+      `;
+    }
+
+    async function signalReady(matchId) {
+      // Ler token
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!token) {
+        alert("Sua sessão expirou. Por favor, logue novamente na aba Perfil.");
+        window.location.href = "/perfil";
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/matches/${matchId}/ready`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          loadMatches(); // Recarrega localmente
+        } else {
+          alert(data.error || "Não foi possível sinalizar estado pronto.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    function setupSocket() {
+      socket = io();
+      
+      socket.on("connect", () => {
+        console.log("Conectado ao canal em tempo real para matchmaking.");
+      });
+
+      socket.on("match_update", (match) => {
+        console.log("Partida atualizada em tempo real:", match);
+        // Atualizar interface
+        loadMatches();
+      });
+    }
+  </script>
+</body>
+</html>

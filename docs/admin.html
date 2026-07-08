@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Administração - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <main class="container">
+    <div style="margin-bottom: 24px;">
+      <h1>🛠️ Painel de Administração</h1>
+      <p class="text-secondary">Controle total sobre jogadores, inscrições, rodadas e resultados do torneio.</p>
+    </div>
+
+    <!-- 1. Fila de Espera (Aprovar inscrições) -->
+    <div class="card">
+      <h2>⏳ Fila de Espera (Novas Inscrições)</h2>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuário</th>
+              <th>E-mail</th>
+              <th>Grupo Destino</th>
+              <th style="width: 200px;">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="waitlist-body">
+            <tr><td colspan="4" style="text-align:center;" class="text-secondary">Carregando inscrições...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top: 24px;">
+      <!-- 2. Gerenciar Partidas (Criar/Editar) -->
+      <div class="card">
+        <h2 id="match-form-title">📅 Criar / Editar Partida</h2>
+        <form id="match-form">
+          <input type="hidden" id="match-id">
+          
+          <div class="form-group">
+            <label for="match-a">Jogador A</label>
+            <select id="match-a" class="form-control" required>
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="match-b">Jogador B</label>
+            <select id="match-b" class="form-control" required>
+              <option value="">Selecione...</option>
+            </select>
+          </div>
+          
+          <div class="row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div class="form-group">
+              <label for="match-stage">Etapa</label>
+              <select id="match-stage" class="form-control" required>
+                <option value="groups">Fase de Grupos</option>
+                <option value="semifinal">Semifinal</option>
+                <option value="final">Final</option>
+                <option value="third">3º Lugar</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="match-group">Grupo (Se Fase de Grupos)</label>
+              <select id="match-group" class="form-control">
+                <option value="">Nenhum</option>
+                <option value="A">Grupo A</option>
+                <option value="B">Grupo B</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div class="form-group">
+              <label for="match-date">Data/Hora</label>
+              <input type="datetime-local" id="match-date" class="form-control">
+            </div>
+            
+            <div class="form-group">
+              <label for="match-code">Código Partida</label>
+              <input type="text" id="match-code" class="form-control" placeholder="Ex: SF1-INFO">
+            </div>
+          </div>
+
+          <div class="row" id="result-status-area" style="display:none; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+            <div class="form-group">
+              <label for="match-status">Status da Partida</label>
+              <select id="match-status" class="form-control">
+                <option value="scheduled">Agendado</option>
+                <option value="live">AO VIVO / Em Andamento</option>
+                <option value="finished">Finalizado</option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label for="match-result">Resultado Final</label>
+              <select id="match-result" class="form-control">
+                <option value="">Pendente</option>
+                <option value="A">Vitória Jogador A</option>
+                <option value="B">Vitória Jogador B</option>
+                <option value="draw">Empate</option>
+                <option value="postponed">Adiado (Cancelado)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="btn-submit-match" class="btn" style="flex-grow:1;">Salvar Partida</button>
+            <button type="button" id="btn-cancel-edit" class="btn btn-ghost" style="display:none;" onclick="cancelMatchEdit()">Cancelar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- 3. Gerenciar Jogadores (CRUD) -->
+      <div class="card">
+        <h2>👥 Adicionar / Editar Jogador</h2>
+        <form id="player-form" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+          <input type="hidden" id="player-id">
+          <div class="form-group">
+            <label for="player-name">Nome do Jogador</label>
+            <input type="text" id="player-name" class="form-control" placeholder="Nome Completo" required>
+          </div>
+          <div class="form-group">
+            <label for="player-group">Grupo</label>
+            <select id="player-group" class="form-control" required>
+              <option value="A">Grupo A</option>
+              <option value="B">Grupo B</option>
+            </select>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button type="submit" id="btn-submit-player" class="btn" style="flex-grow:1;">Salvar Jogador</button>
+            <button type="button" id="btn-cancel-player-edit" class="btn btn-ghost" style="display:none;" onclick="cancelPlayerEdit()">Cancelar</button>
+          </div>
+        </form>
+
+        <h2>📋 Lista de Jogadores Ativos</h2>
+        <div class="table-responsive" style="max-height: 250px; overflow-y:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Grupo</th>
+                <th style="width: 120px;">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="players-list-body">
+              <tr><td colspan="3" style="text-align:center;" class="text-secondary">Carregando jogadores...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Lista de Partidas com Edição Rápida -->
+    <div class="card" style="margin-top: 24px;">
+      <h2>📋 Lista de Partidas Cadastradas</h2>
+      <div class="table-responsive" style="max-height: 400px; overflow-y:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Partida</th>
+              <th>Etapa</th>
+              <th>Código</th>
+              <th>Status</th>
+              <th>Resultado</th>
+              <th style="width: 100px;">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="matches-list-body">
+            <tr><td colspan="7" style="text-align:center;" class="text-secondary">Carregando confrontos...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 5. Ferramentas Extras -->
+    <div class="card" style="margin-top: 24px;">
+      <h2>⚙️ Ferramentas Rápidas</h2>
+      <p style="margin-bottom: 16px;">Operações globais de limpeza e redefinição.</p>
+      
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-danger" onclick="clearCommunityChat()">🗑 Limpar Chat da Comunidade</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <script src="/js/navigation.js"></script>
+  <script src="/js/security.js"></script>
+
+  <script>
+    let token = "";
+    let currentUser = null;
+    let players = [];
+    let matches = [];
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Ler token de cookie
+      token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) currentUser = JSON.parse(userStr);
+      } catch (e) {}
+
+      // Segurança: Redireciona se não for Admin
+      if (!currentUser || (currentUser.role !== "admin" && !currentUser.isAdmin)) {
+        alert("Acesso negado. Apenas administradores podem acessar esta página.");
+        window.location.href = "/perfil";
+        return;
+      }
+
+      // Inicializar dados do painel
+      await loadPanelData();
+
+      // Submit do form de partidas
+      document.getElementById("match-form").addEventListener("submit", saveMatch);
+
+      // Submit do form de jogadores
+      document.getElementById("player-form").addEventListener("submit", savePlayer);
+    });
+
+    async function loadPanelData() {
+      try {
+        // 1. Carregar jogadores
+        const playersRes = await fetch("/api/players");
+        players = await playersRes.json();
+        renderPlayersList();
+        populatePlayersSelects();
+
+        // 2. Carregar partidas
+        const matchesRes = await fetch("/api/matches");
+        matches = await matchesRes.json();
+        renderMatchesList();
+
+        // 3. Carregar fila de espera
+        await loadWaitlist();
+
+      } catch (error) {
+        console.error("Erro ao carregar dados do painel:", error);
+      }
+    }
+
+    async function loadWaitlist() {
+      const tbody = document.getElementById("waitlist-body");
+      try {
+        const res = await fetch("/api/players/waitlist/list", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const waitlist = await res.json();
+
+        if (waitlist.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Nenhuma inscrição pendente na fila de espera.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = waitlist.map(w => `
+          <tr>
+            <td><b>${w.displayName || w.name}</b></td>
+            <td>${w.email}</td>
+            <td>
+              <select id="group-select-${w.uid}" class="form-control" style="padding: 6px 12px; width: 100px;">
+                <option value="A">Grupo A</option>
+                <option value="B">Grupo B</option>
+              </select>
+            </td>
+            <td>
+              <div style="display:flex; gap:8px;">
+                <button class="btn" style="padding: 6px 12px; font-size:12px;" onclick="approveUser('${w.uid}')">Aprovar</button>
+                <button class="btn btn-danger" style="padding: 6px 12px; font-size:12px;" onclick="rejectUser('${w.uid}')">Recusar</button>
+              </div>
+            </td>
+          </tr>
+        `).join("");
+      } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Erro ao carregar fila de espera.</td></tr>`;
+      }
+    }
+
+    async function approveUser(uid) {
+      const group = document.getElementById(`group-select-${uid}`).value;
+      
+      try {
+        const res = await fetch("/api/players/waitlist/approve", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ uid, group })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          alert("Jogador aprovado com sucesso!");
+          await loadPanelData();
+        } else {
+          alert(data.error || "Erro ao aprovar.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    async function rejectUser(uid) {
+      if (!confirm("Deseja recusar esta inscrição?")) return;
+      
+      try {
+        const res = await fetch("/api/players/waitlist/reject", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ uid })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          alert("Inscrição recusada.");
+          await loadPanelData();
+        } else {
+          alert(data.error || "Erro ao processar.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    // Gerenciar Jogadores (CRUD)
+    function renderPlayersList() {
+      const tbody = document.getElementById("players-list-body");
+      if (players.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;" class="text-secondary">Sem jogadores.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = players.map(p => `
+        <tr>
+          <td><b>${p.name}</b></td>
+          <td><span class="badge badge-info">Grupo ${p.group}</span></td>
+          <td>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-ghost" style="padding: 4px 8px; font-size:11px;" onclick="editPlayer('${p.id}', '${p.name}', '${p.group}')">Editar</button>
+              <button class="btn btn-danger" style="padding: 4px 8px; font-size:11px;" onclick="deletePlayer('${p.id}')">Excluir</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    function populatePlayersSelects() {
+      const selectA = document.getElementById("match-a");
+      const selectB = document.getElementById("match-b");
+      
+      const optionsHtml = `<option value="">Escolha...</option>` + players.map(p => `
+        <option value="${p.id}">${p.name} (Grupo ${p.group})</option>
+      `).join("");
+
+      selectA.innerHTML = optionsHtml;
+      selectB.innerHTML = optionsHtml;
+    }
+
+    async function savePlayer(e) {
+      e.preventDefault();
+      
+      const id = document.getElementById("player-id").value;
+      const name = document.getElementById("player-name").value.trim();
+      const group = document.getElementById("player-group").value;
+
+      const url = id ? `/api/players/${id}` : "/api/players";
+      const method = id ? "PUT" : "POST";
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ name, group })
+        });
+        
+        const data = await res.json();
+        if (data.id) {
+          cancelPlayerEdit();
+          await loadPanelData();
+        } else {
+          alert(data.error || "Erro ao salvar jogador.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    function editPlayer(id, name, group) {
+      document.getElementById("player-id").value = id;
+      document.getElementById("player-name").value = name;
+      document.getElementById("player-group").value = group;
+      
+      document.getElementById("btn-submit-player").textContent = "Atualizar Jogador";
+      document.getElementById("btn-cancel-player-edit").style.display = "inline-block";
+    }
+
+    function cancelPlayerEdit() {
+      document.getElementById("player-id").value = "";
+      document.getElementById("player-form").reset();
+      document.getElementById("btn-submit-player").textContent = "Salvar Jogador";
+      document.getElementById("btn-cancel-player-edit").style.display = "none";
+    }
+
+    async function deletePlayer(id) {
+      if (!confirm("Tem certeza que deseja excluir este jogador? Isso não afetará as partidas já salvas dele, mas é recomendado verificar.")) return;
+
+      try {
+        const res = await fetch(`/api/players/${id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadPanelData();
+        } else {
+          alert(data.error || "Erro ao excluir.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    // Gerenciar Partidas (Criar/Editar)
+    function renderMatchesList() {
+      const tbody = document.getElementById("matches-list-body");
+      const playersMap = {};
+      players.forEach(p => { playersMap[p.id] = p.name; });
+
+      if (matches.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;" class="text-secondary">Sem partidas cadastradas.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = matches.map(m => {
+        const playerAName = playersMap[m.aId] || "A definir";
+        const playerBName = playersMap[m.bId] || "A definir";
+        
+        const dateStr = m.date ? new Date(m.date).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—";
+        const stageStr = m.stage === "groups" ? `Grupo ${m.group || ""}` : m.stage.toUpperCase();
+        
+        let statusBadge = `<span class="badge badge-info">Pendente</span>`;
+        if (m.status === "finished") statusBadge = `<span class="badge badge-success">Finalizado</span>`;
+        else if (m.status === "live") statusBadge = `<span class="badge badge-danger">AO VIVO</span>`;
+
+        let resultLabel = "Pendente";
+        if (m.result === "A") resultLabel = `Venc. A`;
+        else if (m.result === "B") resultLabel = `Venc. B`;
+        else if (m.result === "draw") resultLabel = "Empate";
+        else if (m.result === "postponed") resultLabel = "Adiado";
+
+        return `
+          <tr>
+            <td>${dateStr}</td>
+            <td><b>${playerAName}</b> × <b>${playerBName}</b></td>
+            <td><span class="badge" style="background:rgba(56,139,253,0.08); color:#58a6ff;">${stageStr}</span></td>
+            <td><span class="chip" style="padding:4px 8px; font-family:monospace; font-size:11px;">${m.code || '—'}</span></td>
+            <td>${statusBadge}</td>
+            <td><b>${resultLabel}</b></td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-ghost" style="padding: 4px 8px; font-size:11px;" onclick="loadMatchToEdit('${m.id}')">Editar</button>
+                <button class="btn btn-danger" style="padding: 4px 8px; font-size:11px;" onclick="deleteMatch('${m.id}')">Excluir</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    async function saveMatch(e) {
+      e.preventDefault();
+      
+      const id = document.getElementById("match-id").value;
+      const aId = document.getElementById("match-a").value;
+      const bId = document.getElementById("match-b").value;
+      const stage = document.getElementById("match-stage").value;
+      const group = document.getElementById("match-group").value;
+      const date = document.getElementById("match-date").value;
+      const code = document.getElementById("match-code").value.trim();
+      const status = document.getElementById("match-status").value;
+      const result = document.getElementById("match-result").value;
+
+      const url = id ? `/api/matches/${id}` : "/api/matches";
+      const method = id ? "PUT" : "POST";
+
+      const payload = { aId, bId, stage, group, date, code };
+      if (id) {
+        payload.status = status;
+        payload.result = result;
+      }
+
+      try {
+        const res = await fetch(url, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        if (data.id) {
+          cancelMatchEdit();
+          await loadPanelData();
+        } else {
+          alert(data.error || "Erro ao salvar partida.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    function loadMatchToEdit(id) {
+      const m = matches.find(x => x.id === id);
+      if (!m) return;
+
+      document.getElementById("match-id").value = m.id;
+      document.getElementById("match-a").value = m.aId;
+      document.getElementById("match-b").value = m.bId;
+      document.getElementById("match-stage").value = m.stage;
+      document.getElementById("match-group").value = m.group || "";
+      document.getElementById("match-code").value = m.code || "";
+      
+      // Converter data do Firestore para formato datetime-local
+      if (m.date) {
+        const d = new Date(m.date);
+        const format2 = n => n < 10 ? `0${n}` : n;
+        document.getElementById("match-date").value = `${d.getFullYear()}-${format2(d.getMonth()+1)}-${format2(d.getDate())}T${format2(d.getHours())}:${format2(d.getMinutes())}`;
+      } else {
+        document.getElementById("match-date").value = "";
+      }
+
+      document.getElementById("match-status").value = m.status || "scheduled";
+      document.getElementById("match-result").value = m.result || "";
+
+      // Exibe seção de resultado e status para edição
+      document.getElementById("result-status-area").style.display = "grid";
+      
+      document.getElementById("match-form-title").textContent = "📝 Editar Partida";
+      document.getElementById("btn-submit-match").textContent = "Atualizar Partida";
+      document.getElementById("btn-cancel-edit").style.display = "inline-block";
+
+      // Rolar até o form
+      document.getElementById("match-form").scrollIntoView({ behavior: "smooth" });
+    }
+
+    function cancelMatchEdit() {
+      document.getElementById("match-id").value = "";
+      document.getElementById("match-form").reset();
+      document.getElementById("result-status-area").style.display = "none";
+      document.getElementById("match-form-title").textContent = "📅 Criar Partida";
+      document.getElementById("btn-submit-match").textContent = "Salvar Partida";
+      document.getElementById("btn-cancel-edit").style.display = "none";
+    }
+
+    async function deleteMatch(id) {
+      if (!confirm("Tem certeza que deseja excluir esta partida?")) return;
+
+      try {
+        const res = await fetch(`/api/matches/${id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadPanelData();
+        } else {
+          alert(data.error || "Erro ao excluir.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    // Ferramentas Extras
+    async function clearCommunityChat() {
+      if (!confirm("ATENÇÃO: Deseja apagar permanentemente todas as mensagens do chat da comunidade? Esta ação não pode ser desfeita.")) return;
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          alert("Chat limpo com sucesso!");
+        } else {
+          alert(data.error || "Erro ao limpar chat.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+  </script>
+</body>
+</html>
