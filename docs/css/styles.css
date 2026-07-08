@@ -337,63 +337,81 @@ tr:hover {
   width: calc(100% - 32px);
   max-width: 1168px;
   height: 70px;
-  background-color: rgba(12, 16, 32, 0.6);
+  background-color: rgba(13, 20, 38, 0.7);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 9999px;
   z-index: 1000;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  box-shadow: var(--shadow-premium);
+  box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.desktop-navbar:hover {
+  border-color: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.8), 0 0 25px rgba(16, 185, 129, 0.05);
 }
 
 .desktop-navbar .logo-area {
   display: flex;
   align-items: center;
   gap: 12px;
+  transition: all 0.2s ease;
 }
 
 .desktop-navbar .logo-area img {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 1px solid var(--border-color);
+  border: 1.5px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.desktop-navbar .logo-area:hover img {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 12px var(--accent-glow);
+  transform: rotate(15deg);
 }
 
 .desktop-navbar .logo-area strong {
   font-size: 16.5px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #fff, #94a3b8);
+  background: linear-gradient(135deg, #ffffff, var(--text-secondary));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .desktop-navbar .nav-links {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
 .desktop-navbar .nav-links a {
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   padding: 8px 16px;
   border-radius: 9999px;
   border: 1px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .desktop-navbar .nav-links a:hover {
   color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 .desktop-navbar .nav-links a.active {
-  color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.05);
-  border-color: var(--border-color);
+  color: var(--accent-color);
+  background-color: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.12);
 }
 
 .desktop-navbar .auth-area {
@@ -416,16 +434,17 @@ tr:hover {
   left: 16px;
   width: calc(100% - 32px);
   height: var(--bottom-nav-height);
-  background-color: rgba(12, 16, 32, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-color);
+  background-color: rgba(13, 20, 38, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 24px;
   z-index: 1000;
   justify-content: space-around;
   align-items: center;
   padding: 8px 12px;
-  box-shadow: var(--shadow-premium), 0 10px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
 .mobile-navbar a {
@@ -436,19 +455,21 @@ tr:hover {
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   flex-grow: 1;
   gap: 4px;
   height: 100%;
   position: relative;
+  transition: all 0.2s ease;
 }
 
 .mobile-navbar a svg {
   width: 22px;
   height: 22px;
   stroke: var(--text-secondary);
-  stroke-width: 2;
+  stroke-width: 2.2;
   fill: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mobile-navbar a:hover {
@@ -460,24 +481,24 @@ tr:hover {
 }
 
 .mobile-navbar a.active {
-  color: var(--secondary-color);
+  color: var(--accent-color);
 }
 
 .mobile-navbar a.active svg {
-  stroke: var(--secondary-color);
-  transform: translateY(-4px) scale(1.1);
-  filter: drop-shadow(0 0 5px var(--secondary-glow));
+  stroke: var(--accent-color);
+  transform: translateY(-4px) scale(1.12);
+  filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.35));
 }
 
 .mobile-navbar a.active::after {
   content: '';
   position: absolute;
   bottom: -2px;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background-color: var(--secondary-color);
-  box-shadow: 0 0 10px var(--secondary-color);
+  background-color: var(--accent-color);
+  box-shadow: 0 0 10px var(--accent-color);
 }
 
 @media (min-width: 769px) {
