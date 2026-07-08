@@ -60,16 +60,8 @@
           </div>
         </div>
 
-        <div id="role-selection-area" style="display: flex; flex-direction: column; gap: 12px;">
-          <button class="btn btn-ghost" onclick="selectRole('spectator')" style="text-align: left; justify-content: flex-start; padding: 14px;">
-            👀 <b>Permanecer como Espectador</b><br>
-            <span style="font-size: 12px; font-weight: normal; color: var(--text-secondary);">Apenas assista partidas, converse no chat e aposte.</span>
-          </button>
-          
-          <button class="btn" onclick="selectRole('participant')" style="text-align: left; justify-content: flex-start; padding: 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid var(--accent-color); color: var(--text-primary); box-shadow: none;">
-            ♟️ <b style="color: var(--accent-color);">Solicitar Inscrição como Jogador</b><br>
-            <span style="font-size: 12px; font-weight: normal; color: var(--text-secondary);">Submete seu perfil para a fila de espera. Requer aprovação do admin.</span>
-          </button>
+        <div id="role-selection-area" style="display: none; flex-direction: column; gap: 12px;">
+          <!-- Preenchido dinamicamente para evitar race condition -->
         </div>
       </div>
     </div>
@@ -207,6 +199,17 @@
       const role = profileData.role;
       const status = profileData.participantStatus;
 
+      const standardButtons = `
+        <button class="btn btn-ghost" onclick="selectRole('spectator')" style="text-align: left; justify-content: flex-start; padding: 14px; width: 100%;">
+          👀 <b>Permanecer como Espectador</b><br>
+          <span style="font-size: 12px; font-weight: normal; color: var(--text-secondary);">Apenas assista partidas, converse no chat e aposte.</span>
+        </button>
+        <button class="btn" onclick="selectRole('participant')" style="text-align: left; justify-content: flex-start; padding: 14px; width: 100%; background: rgba(16, 185, 129, 0.08); border: 1px solid var(--accent-color); color: var(--text-primary); box-shadow: none;">
+          ♟️ <b style="color: var(--accent-color);">Solicitar Inscrição como Jogador</b><br>
+          <span style="font-size: 12px; font-weight: normal; color: var(--text-secondary);">Submete seu perfil para a fila de espera. Requer aprovação do admin.</span>
+        </button>
+      `;
+
       if (role === "admin") {
         statusArea.innerHTML = `<span class="badge badge-danger">ADMINISTRADOR</span><p style="margin-top: 8px;">Você possui controle absoluto sobre o torneio.</p>`;
         selectionArea.style.display = "none";
@@ -215,12 +218,19 @@
         selectionArea.style.display = "none";
       } else if (status === "pending") {
         statusArea.innerHTML = `<span class="badge badge-warning">INSCRIÇÃO EM ANÁLISE</span><p style="margin-top: 8px;">Você está na lista de espera. Aguarde o administrador autorizar sua entrada.</p>`;
-        selectionArea.style.display = "none";
+        selectionArea.innerHTML = `
+          <button class="btn btn-danger" onclick="cancelRegistration()" style="width: 100%; padding: 12px; font-weight: 800; background-color: var(--danger-color); color: #fff; border-color: var(--danger-color);">
+            ❌ Cancelar Inscrição
+          </button>
+        `;
+        selectionArea.style.display = "flex";
       } else if (status === "rejected") {
         statusArea.innerHTML = `<span class="badge badge-danger">INSCRIÇÃO RECUSADA</span><p style="margin-top: 8px;">Sua solicitação de participante foi rejeitada pela organização. Você permanece como Espectador.</p>`;
+        selectionArea.innerHTML = standardButtons;
         selectionArea.style.display = "flex";
       } else {
         statusArea.innerHTML = `<span class="badge badge-info">ESPECTADOR</span><p style="margin-top: 8px;">Você está assistindo o torneio de fora. Pode dar palpites e usar o chat.</p>`;
+        selectionArea.innerHTML = standardButtons;
         selectionArea.style.display = "flex";
       }
     }
@@ -421,6 +431,28 @@
           submitBtn.disabled = false;
         }
       };
+    async function cancelRegistration() {
+      if (!confirm("Deseja cancelar sua solicitação de inscrição para participar do torneio?")) return;
+      if (!window.auth.currentUser) return;
+
+      const uid = window.auth.currentUser.uid;
+      const userRef = window.db.collection("users").doc(uid);
+
+      try {
+        // Remover da waitlist
+        await window.db.collection("waitlist").doc(uid).delete();
+
+        // Mudar status para none
+        await userRef.update({
+          participantStatus: "none"
+        });
+
+        alert("Inscrição cancelada com sucesso!");
+        window.location.reload();
+      } catch (error) {
+        console.error("Erro ao cancelar inscrição:", error);
+        alert("Erro ao cancelar inscrição.");
+      }
     }
   </script>
 </body>

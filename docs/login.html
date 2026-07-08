@@ -94,6 +94,13 @@
   <script src="js/firebase-config.js"></script>
 
   <script>
+    // Se já estiver logado e com captcha resolvido, vai direto para index
+    window.auth.onAuthStateChanged((user) => {
+      if (user && localStorage.getItem("captcha_solved") === "true") {
+        window.location.href = "index.html";
+      }
+    });
+
     document.getElementById("btn-google-login").addEventListener("click", () => {
       const errorEl = document.getElementById("login-error");
       const btn = document.getElementById("btn-google-login");
