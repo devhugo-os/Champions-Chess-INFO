@@ -20,20 +20,20 @@ function renderNavigation() {
   desktopNav.className = "desktop-navbar";
   
   let desktopNavLinks = `
-    <a href="/index.html" class="${filename === "index.html" || filename === "" ? "active" : ""}">Início</a>
-    <a href="/regulamento.html" class="${filename === "regulamento.html" ? "active" : ""}">Regulamento</a>
-    <a href="/partidas.html" class="${filename === "partidas.html" ? "active" : ""}">Partidas</a>
-    <a href="/tabela.html" class="${filename === "tabela.html" ? "active" : ""}">Tabela</a>
-    <a href="/players.html" class="${filename === "players.html" ? "active" : ""}">Jogadores</a>
-    <a href="/comunicados.html" class="${filename === "comunicados.html" ? "active" : ""}">Comunicados</a>
-    <a href="/vencedores.html" class="${filename === "vencedores.html" ? "active" : ""}">Vencedores</a>
-    <a href="/chat.html" class="${filename === "chat.html" ? "active" : ""}">Chat</a>
-    <a href="/apostas.html" class="${filename === "apostas.html" ? "active" : ""}">Apostas</a>
-    <a href="/perfil.html" class="${filename === "perfil.html" ? "active" : ""}">Perfil</a>
+    <a href="index.html" class="${filename === "index.html" || filename === "" ? "active" : ""}">Início</a>
+    <a href="regulamento.html" class="${filename === "regulamento.html" ? "active" : ""}">Regulamento</a>
+    <a href="partidas.html" class="${filename === "partidas.html" ? "active" : ""}">Partidas</a>
+    <a href="tabela.html" class="${filename === "tabela.html" ? "active" : ""}">Tabela</a>
+    <a href="players.html" class="${filename === "players.html" ? "active" : ""}">Jogadores</a>
+    <a href="comunicados.html" class="${filename === "comunicados.html" ? "active" : ""}">Comunicados</a>
+    <a href="vencedores.html" class="${filename === "vencedores.html" ? "active" : ""}">Vencedores</a>
+    <a href="chat.html" class="${filename === "chat.html" ? "active" : ""}">Chat</a>
+    <a href="apostas.html" class="${filename === "apostas.html" ? "active" : ""}">Apostas</a>
+    <a href="perfil.html" class="${filename === "perfil.html" ? "active" : ""}">Perfil</a>
   `;
 
   if (isAdmin) {
-    desktopNavLinks += `<a href="/admin.html" class="${filename === "admin.html" ? "active" : ""}" style="color: #ffd8a8; border-color: rgba(255, 216, 168, 0.2);">Painel Admin</a>`;
+    desktopNavLinks += `<a href="admin.html" class="${filename === "admin.html" ? "active" : ""}" style="color: #ffd8a8; border-color: rgba(255, 216, 168, 0.2);">Painel Admin</a>`;
   }
 
   let authAreaHtml = "";
@@ -41,7 +41,7 @@ function renderNavigation() {
     const avatar = user.avatarBase64 || "https://lh3.googleusercontent.com/a/default-user=s96-c";
     authAreaHtml = `
       <div class="auth-area">
-        <a href="/perfil.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+        <a href="perfil.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
           <img src="${avatar}" style="width:34px;height:34px;border-radius:50%;border:2px solid var(--accent-color);" alt="Avatar"/>
           <span style="font-size:13.5px;font-weight:600;color:var(--text-primary);">${user.name}</span>
         </a>
@@ -51,8 +51,8 @@ function renderNavigation() {
   }
 
   desktopNav.innerHTML = `
-    <div class="logo-area" style="cursor:pointer;" onclick="window.location.href='/index.html'">
-      <img src="/logo.png" alt="Logo"/>
+    <div class="logo-area" style="cursor:pointer;" onclick="window.location.href='index.html'">
+      <img src="logo.png" alt="Logo"/>
       <strong>Champions Chess INFO</strong>
     </div>
     <div class="nav-links">
@@ -75,23 +75,23 @@ function renderNavigation() {
   const adminIcon = `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`;
 
   let mobileNavLinks = `
-    <a href="/index.html" class="${filename === "index.html" || filename === "" ? "active" : ""}">
+    <a href="index.html" class="${filename === "index.html" || filename === "" ? "active" : ""}">
       ${homeIcon}
       <span>Início</span>
     </a>
-    <a href="/partidas.html" class="${filename === "partidas.html" ? "active" : ""}">
+    <a href="partidas.html" class="${filename === "partidas.html" ? "active" : ""}">
       ${matchesIcon}
       <span>Partidas</span>
     </a>
-    <a href="/tabela.html" class="${filename === "tabela.html" ? "active" : ""}">
+    <a href="tabela.html" class="${filename === "tabela.html" ? "active" : ""}">
       ${tableIcon}
       <span>Tabela</span>
     </a>
-    <a href="/apostas.html" class="${filename === "apostas.html" ? "active" : ""}">
+    <a href="apostas.html" class="${filename === "apostas.html" ? "active" : ""}">
       ${betsIcon}
       <span>Apostas</span>
     </a>
-    <a href="/chat.html" class="${filename === "chat.html" ? "active" : ""}">
+    <a href="chat.html" class="${filename === "chat.html" ? "active" : ""}">
       ${chatIcon}
       <span>Chat</span>
     </a>
@@ -99,14 +99,14 @@ function renderNavigation() {
 
   if (isAdmin) {
     mobileNavLinks += `
-      <a href="/admin.html" class="${filename === "admin.html" ? "active" : ""}">
+      <a href="admin.html" class="${filename === "admin.html" ? "active" : ""}">
         ${adminIcon}
         <span>Admin</span>
       </a>
     `;
   } else {
     mobileNavLinks += `
-      <a href="/perfil.html" class="${filename === "perfil.html" ? "active" : ""}">
+      <a href="perfil.html" class="${filename === "perfil.html" ? "active" : ""}">
         ${profileIcon}
         <span>Perfil</span>
       </a>
@@ -125,7 +125,7 @@ function renderNavigation() {
     desktopLogoutBtn.addEventListener("click", () => {
       window.auth.signOut().then(() => {
         localStorage.removeItem("user");
-        window.location.href = "/login.html";
+        window.location.href = "login.html";
       }).catch(err => {
         console.error("Erro ao deslogar:", err);
       });

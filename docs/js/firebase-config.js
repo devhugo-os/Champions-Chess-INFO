@@ -43,7 +43,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // 1. Verificar Captcha
   if (localStorage.getItem("captcha_solved") !== "true") {
-    window.location.href = "/captcha.html";
+    window.location.href = "captcha.html";
     return;
   }
 
@@ -52,7 +52,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!user) {
       // Remover dados locais e redirecionar
       localStorage.removeItem("user");
-      window.location.href = "/login.html";
+      window.location.href = "login.html";
     } else {
       // Salvar ou atualizar usuário no localStorage
       // Buscamos o documento no Firestore para ver o papel e saldo
