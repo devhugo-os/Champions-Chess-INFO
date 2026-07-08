@@ -246,6 +246,7 @@
             participantStatus: "pending"
           });
           alert("Solicitação enviada para a fila de espera!");
+          window.location.reload();
         } else {
           // Espectador
           await userRef.update({
@@ -253,6 +254,7 @@
             participantStatus: "none"
           });
           alert("Sua inscrição foi alterada para Espectador.");
+          window.location.reload();
         }
       } catch (error) {
         console.error("Erro ao selecionar papel:", error);
@@ -312,6 +314,7 @@
         selectedAvatarBase64 = null;
 
         alert("Perfil atualizado com sucesso!");
+        window.location.reload();
       } catch (error) {
         console.error("Erro ao atualizar perfil:", error);
         alert("Erro ao salvar alterações do perfil.");
@@ -411,6 +414,7 @@
 
           modal.style.display = "none";
           alert("Cadastro concluído com sucesso! Bem-vindo!");
+          window.location.reload();
         } catch (error) {
           console.error("Erro ao criar cadastro:", error);
           alert("Erro ao criar cadastro.");
