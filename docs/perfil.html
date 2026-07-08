@@ -305,9 +305,26 @@
           return;
         }
 
-        const updates = { name };
+        const updates = {};
+        let nameChanged = (name !== (profileData.name || ""));
+        
+        if (nameChanged) {
+          const currentCount = profileData.nameChangesCount || 0;
+          if (currentCount >= 3) {
+            alert(`Você já alterou seu nome de usuário o limite máximo de 3 vezes!`);
+            return;
+          }
+          updates.name = name;
+          updates.nameChangesCount = currentCount + 1;
+        }
+
         if (selectedAvatarBase64) {
           updates.avatarBase64 = selectedAvatarBase64;
+        }
+
+        if (Object.keys(updates).length === 0) {
+          alert("Nenhuma alteração detectada para salvar.");
+          return;
         }
 
         await userRef.update(updates);
@@ -403,6 +420,7 @@
             points: 1000,
             role: "spectator",
             participantStatus: "none",
+            nameChangesCount: 0,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
 

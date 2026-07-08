@@ -199,4 +199,62 @@ function renderNavigation() {
 
   const mobileLogoutBtn = document.getElementById("btn-mobile-logout");
   if (mobileLogoutBtn) mobileLogoutBtn.addEventListener("click", logout);
+
+  // Injetar Changelog e Versão no rodapé dinamicamente em todas as páginas
+  const footer = document.querySelector(".site-footer");
+  if (footer) {
+    footer.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;">
+        <span>© Champions Chess INFO</span>
+        <button onclick="showChangelogModal()" class="btn btn-ghost" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+          📋 Versão v1.5.0 (Histórico de Alterações)
+        </button>
+      </div>
+    `;
+  }
 }
+
+window.showChangelogModal = function() {
+  let modal = document.getElementById("changelog-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "changelog-modal";
+    modal.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(6, 9, 19, 0.95); backdrop-filter: blur(12px); z-index: 10005; display: flex; align-items: center; justify-content: center; padding: 20px;";
+    modal.innerHTML = `
+      <div class="card" style="max-width: 520px; width: 100%; border: 1px solid var(--border-color); padding: 30px; position: relative; max-height: 85vh; display: flex; flex-direction: column;">
+        <button onclick="document.getElementById('changelog-modal').remove()" style="position: absolute; top: 16px; right: 16px; background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer;">&times;</button>
+        <h2 style="margin-bottom: 20px; font-weight: 800; text-align: center; background: linear-gradient(135deg, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Histórico de Alterações</h2>
+        
+        <div style="overflow-y: auto; flex-grow: 1; text-align: left; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.5.0 (Atual)</h4>
+          <ul style="margin-bottom: 16px; padding-left: 20px;">
+            <li>Ampliação de escala dos logos e avatares (Desktop 50px, Mobile 44px) para maior visibilidade.</li>
+            <li>Cadastro obrigatório de nickname no primeiro acesso (onboarding).</li>
+            <li>Limitação de alteração de nickname a no máximo 3 vezes por usuário.</li>
+            <li>Correção de salvamento tardio da imagem de perfil apenas ao clicar em Salvar Alterações.</li>
+            <li>Recarregamento automático de página para atualizar dados da navbar.</li>
+            <li>Prevenção de race condition na seleção de papéis com desativação/cancelamento seguro da waitlist.</li>
+            <li>Sistema de verificação de atualização forçada com base na versão remota do Realtime Database.</li>
+          </ul>
+          
+          <h4 style="color: var(--secondary-color); margin-bottom: 4px;">Versão v1.4.0</h4>
+          <ul style="margin-bottom: 16px; padding-left: 20px;">
+            <li>Substituição da barra móvel inferior por Cabeçalho de 54px + Menu lateral (Drawer) Hamburguer.</li>
+            <li>Detecção aprimorada de dispositivos móveis em modo paisagem (Landscape).</li>
+            <li>Correções de alinhamento na tabela de classificação de apostadores.</li>
+            <li>Ocultação de painéis extras no preview do Regulamento PDF.</li>
+          </ul>
+          
+          <h4 style="color: var(--text-muted); margin-bottom: 4px;">Versão v1.3.0</h4>
+          <ul style="padding-left: 20px;">
+            <li>Migração completa para Single Page Application (SPA) estática.</li>
+            <li>Obfuscação de chaves de API do Firebase para conformidade com regras do GitHub Pages.</li>
+          </ul>
+        </div>
+        
+        <button onclick="document.getElementById('changelog-modal').remove()" class="btn btn-ghost" style="margin-top: 20px; width: 100%;">Fechar</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+};

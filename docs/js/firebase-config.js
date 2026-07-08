@@ -110,6 +110,56 @@ window.addEventListener("DOMContentLoaded", () => {
           }
         }
       }).catch(err => console.error("Erro ao carregar perfil:", err));
+
+      // 3. Monitorar versão do site em tempo real (Realtime Database)
+      window.rtdb.ref("metadata/version").on("value", (snapshot) => {
+        const remoteVersion = snapshot.val();
+        const CURRENT_VERSION = "1.5.0";
+        if (remoteVersion && remoteVersion !== CURRENT_VERSION) {
+          showUpdateEnforcementModal(remoteVersion);
+        }
+      });
     }
   });
 });
+
+function showUpdateEnforcementModal(newVersion) {
+  if (document.getElementById("update-enforcement-modal")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "update-enforcement-modal";
+  modal.style.cssText = "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #070913; z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 20px; text-align: center;";
+  modal.innerHTML = `
+    <div class="card" style="max-width: 480px; width: 100%; border: 1px solid var(--accent-color); padding: 40px 30px; box-shadow: 0 0 30px rgba(16, 185, 129, 0.2);">
+      <h1 style="font-size: 26px; margin-bottom: 16px; font-weight: 800; background: linear-gradient(135deg, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Atualização Obrigatória</h1>
+      <p style="font-size: 14.5px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
+        Uma nova versão da plataforma está disponível (<b>v${newVersion}</b>). Para garantir a integridade dos saldos, palpites e partidas, você deve atualizar o site.
+      </p>
+      <button onclick="forceSiteUpdate()" class="btn" style="width: 100%; padding: 14px; font-weight: 800; font-size: 15px; box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);">
+        🔄 Recarregar e Atualizar Agora
+      </button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+window.forceSiteUpdate = function() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (let registration of registrations) {
+        registration.unregister();
+      }
+    });
+  }
+  if (window.caches) {
+    caches.keys().then(names => {
+      for (let name of names) {
+        caches.delete(name);
+      }
+    });
+  }
+  localStorage.clear();
+  sessionStorage.clear();
+  localStorage.setItem("captcha_solved", "true");
+  window.location.reload(true);
+};
