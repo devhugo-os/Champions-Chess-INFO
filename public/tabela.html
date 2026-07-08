@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classificação - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <main class="container">
+    <div class="grid-2">
+      <!-- Tabela Grupo A -->
+      <div class="card">
+        <h2>📊 Tabela – Grupo A</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th>Jogador</th>
+                <th style="width: 40px; text-align:center;">J</th>
+                <th style="width: 40px; text-align:center;">V</th>
+                <th style="width: 40px; text-align:center;">E</th>
+                <th style="width: 40px; text-align:center;">D</th>
+                <th style="width: 50px; text-align:center;">Pts</th>
+              </tr>
+            </thead>
+            <tbody id="table-a-body">
+              <tr><td colspan="7" style="text-align:center;" class="text-secondary">Carregando classificação...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabela Grupo B -->
+      <div class="card">
+        <h2>📊 Tabela – Grupo B</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th>Jogador</th>
+                <th style="width: 40px; text-align:center;">J</th>
+                <th style="width: 40px; text-align:center;">V</th>
+                <th style="width: 40px; text-align:center;">E</th>
+                <th style="width: 40px; text-align:center;">D</th>
+                <th style="width: 50px; text-align:center;">Pts</th>
+              </tr>
+            </thead>
+            <tbody id="table-b-body">
+              <tr><td colspan="7" style="text-align:center;" class="text-secondary">Carregando classificação...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <script src="/js/navigation.js"></script>
+  <script src="/js/security.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", loadStandings);
+
+    async function loadStandings() {
+      try {
+        const [playersRes, matchesRes] = await Promise.all([
+          fetch("/api/players"),
+          fetch("/api/matches")
+        ]);
+
+        const players = await playersRes.json();
+        const allMatches = await matchesRes.json();
+
+        // Filtrar apenas partidas de grupos finalizadas
+        const groupMatches = allMatches.filter(m => m.stage === "groups" && m.status === "finished");
+
+        // Helper para calcular estatísticas de um jogador
+        const computeStats = (playerId) => {
+          const pMatches = groupMatches.filter(m => m.aId === playerId || m.bId === playerId);
+          let points = 0, wins = 0, draws = 0, losses = 0, played = 0;
+          
+          for (const m of pMatches) {
+            played++;
+            if (m.result === "draw") {
+              draws++; points += 1;
+            } else if (m.result === "A") {
+              if (m.aId === playerId) { wins++; points += 3; } else { losses++; }
+            } else if (m.result === "B") {
+              if (m.bId === playerId) { wins++; points += 3; } else { losses++; }
+            }
+          }
+          return { points, wins, draws, losses, played };
+        };
+
+        const renderGroupTable = (group, tbodyId) => {
+          const groupPlayers = players.filter(p => p.group === group);
+          const rows = groupPlayers.map(p => ({
+            id: p.id,
+            name: p.name,
+            ...computeStats(p.id)
+          }));
+
+          // Primeiro desempate: Confronto Direto (H2H)
+          const headToHeadCompare = (aId, bId) => {
+            const m = groupMatches.find(x => 
+              ((x.aId === aId && x.bId === bId) || (x.aId === bId && x.bId === aId))
+            );
+            if (!m || !m.result || m.result === "draw") return 0;
+            if (m.result === "A") return (m.aId === aId) ? -1 : 1;
+            if (m.result === "B") return (m.bId === aId) ? -1 : 1;
+            return 0;
+          };
+
+          const compare = (a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            const h2h = headToHeadCompare(a.id, b.id);
+            if (h2h !== 0) return h2h;
+            return (b.wins - a.wins) || a.name.localeCompare(b.name);
+          };
+
+          rows.sort(compare);
+
+          const tbody = document.getElementById(tbodyId);
+          if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;" class="text-secondary">Nenhum jogador cadastrado neste grupo.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = rows.map((r, i) => {
+            const rankClass = i === 0 ? "style='background: rgba(16, 185, 129, 0.08); border-left: 3px solid var(--accent-color);'" : 
+                             i === 1 ? "style='background: rgba(56, 139, 253, 0.08); border-left: 3px solid #388bfd;'" : "";
+            return `
+              <tr ${rankClass}>
+                <td><b>${i + 1}</b></td>
+                <td><b>${r.name}</b></td>
+                <td style="text-align:center;">${r.played}</td>
+                <td style="text-align:center;">${r.wins}</td>
+                <td style="text-align:center;">${r.draws}</td>
+                <td style="text-align:center;">${r.losses}</td>
+                <td style="text-align:center; color: var(--accent-color); font-weight: 700;">${r.points}</td>
+              </tr>
+            `;
+          }).join("");
+        };
+
+        renderGroupTable("A", "table-a-body");
+        renderGroupTable("B", "table-b-body");
+
+      } catch (error) {
+        console.error("Erro ao carregar classificação:", error);
+      }
+    }
+  </script>
+</body>
+</html>

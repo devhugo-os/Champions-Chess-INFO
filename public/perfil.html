@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seu Perfil - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <main class="container">
+    <!-- TELA DE LOGIN (OCULTA SE LOGADO) -->
+    <div id="login-container" class="card" style="max-width: 450px; margin: 40px auto; text-align: center; display: none;">
+      <h2 style="border:none; padding-bottom:0; justify-content:center;">Acessar Plataforma</h2>
+      <p style="margin-bottom: 24px;">Faça login com sua conta do Google para participar do chat, realizar palpites e gerenciar seu perfil.</p>
+      
+      <button id="btn-google-login" class="btn" style="width: 100%; height: 48px; font-size: 15px;">
+        <svg viewBox="0 0 24 24" width="18" height="18" style="fill: currentColor; margin-right: 8px;">
+          <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.51 0-6.377-2.87-6.377-6.38s2.87-6.38 6.377-6.38c1.62 0 3.097.604 4.226 1.594l3.125-3.13C19.39 2.3 16.035 1 12.24 1 6.033 1 1 6.033 1 12.24s5.033 11.24 11.24 11.24c6.478 0 11.24-4.57 11.24-11.24 0-.763-.085-1.5-.24-1.955H12.24z"/>
+        </svg>
+        Entrar com o Google
+      </button>
+      <p id="login-error" style="color: var(--danger-color); margin-top: 14px; display: none;"></p>
+    </div>
+
+    <!-- TELA DE PERFIL (EXIBIDA SE LOGADO) -->
+    <div id="profile-container" class="grid-2" style="display: none;">
+      <!-- Configurações Gerais -->
+      <div class="card">
+        <h2>👤 Informações do Perfil</h2>
+        
+        <!-- Foto de Perfil com Upload Base64 -->
+        <div class="avatar-preview-container">
+          <img id="avatar-img" class="avatar-large" src="https://lh3.googleusercontent.com/a/default-user=s96-c" alt="Avatar">
+          <div style="text-align: center;">
+            <input type="file" id="avatar-input" accept="image/*" style="display: none;">
+            <button class="btn btn-ghost" style="padding: 8px 16px; font-size: 12.5px;" onclick="document.getElementById('avatar-input').click()">Alterar Foto</button>
+            <p style="font-size: 11px; margin-top: 6px;">O arquivo será comprimido e redimensionado no seu navegador.</p>
+          </div>
+        </div>
+
+        <form id="profile-form">
+          <div class="form-group">
+            <label for="profile-name">Nome Completo</label>
+            <input type="text" id="profile-name" class="form-control" placeholder="Seu Nome Completo" required>
+          </div>
+          <div class="form-group">
+            <label>E-mail Associado</label>
+            <input type="text" id="profile-email" class="form-control" disabled>
+          </div>
+          <div class="form-group">
+            <label>Seu Saldo</label>
+            <div style="font-size: 20px; font-weight: 800; color: var(--accent-color); margin-top: 4px;">
+              <span id="profile-points">0</span> CCIP
+            </div>
+          </div>
+          <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Salvar Alterações</button>
+        </form>
+      </div>
+
+      <!-- Escolha de Papel no Torneio -->
+      <div class="card">
+        <h2>♟️ Participação no Torneio</h2>
+        <p style="margin-bottom: 20px;">Você pode se cadastrar como apenas um espectador ou submeter sua inscrição para jogar na tabela oficial.</p>
+        
+        <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); padding: 18px; border-radius: var(--radius-md); margin-bottom: 20px;">
+          <h3 style="font-size: 15px; margin-bottom: 6px;">Status da Inscrição</h3>
+          <div id="role-status-area">
+            <!-- Dinâmico -->
+          </div>
+        </div>
+
+        <div id="role-selection-area" style="display: flex; flex-direction: column; gap: 12px;">
+          <button class="btn btn-ghost" onclick="selectRole('spectator')" style="text-align: left; justify-content: flex-start; padding: 14px;">
+            👀 <b>Permanecer como Espectador</b><br>
+            <span style="font-size: 12px; font-weight: normal; color: var(--text-secondary);">Apenas assista partidas, converse no chat e aposte.</span>
+          </button>
+          
+          <button class="btn" onclick="selectRole('participant')" style="text-align: left; justify-content: flex-start; padding: 14px; background: rgba(16, 185, 129, 0.08); border: 1px solid var(--accent-color); color: var(--text-primary); box-shadow: none;">
+            ♟️ <b style="color: var(--accent-color);">Solicitar Inscrição como Jogador</b><br>
+            <span style="font-size: 12px; font-weight: normal; color: var(--text-secondary);">Submete seu perfil para a fila de espera. Requer aprovação do admin.</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <script src="/js/navigation.js"></script>
+  <script src="/js/security.js"></script>
+
+  <!-- Firebase CDN v10 (Apenas Auth client-side) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCIJNmHcgPYhmD_KVCu07nRY6u3KlXbcXM",
+      authDomain: "champions-chess-info.firebaseapp.com",
+      projectId: "champions-chess-info",
+      storageBucket: "champions-chess-info.firebasestorage.app",
+      messagingSenderId: "548386751104",
+      appId: "1:548386751104:web:fb9232b77bdba4c9405c65",
+      measurementId: "G-4BDSJWJS98"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    window.loginWithGoogleFirebase = async () => {
+      const provider = new GoogleAuthProvider();
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const token = await result.user.getIdToken();
+        return { token, user: result.user };
+      } catch (error) {
+        console.error("Erro Google popup:", error);
+        throw error;
+      }
+    };
+  </script>
+
+  <script>
+    let profileData = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Configurar botão de login do Google
+      document.getElementById("btn-google-login").addEventListener("click", performLogin);
+      
+      // Configurar formulário
+      document.getElementById("profile-form").addEventListener("submit", saveProfile);
+
+      // Configurar upload de imagem
+      document.getElementById("avatar-input").addEventListener("change", compressAndUploadAvatar);
+
+      checkSession();
+    });
+
+    async function performLogin() {
+      const errorEl = document.getElementById("login-error");
+      errorEl.style.display = "none";
+
+      try {
+        const { token, user } = await window.loginWithGoogleFirebase();
+        
+        // Configurar cookie de sessão token
+        document.cookie = `session_token=${token}; max-age=36000; path=/`;
+
+        // Chamar backend para inicializar perfil / carteira
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+          window.location.reload();
+        } else {
+          errorEl.textContent = data.error || "Erro ao conectar com o servidor.";
+          errorEl.style.display = "block";
+        }
+      } catch (error) {
+        errorEl.textContent = "Cancelado ou erro no login do Google popup.";
+        errorEl.style.display = "block";
+      }
+    }
+
+    async function checkSession() {
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      
+      if (!token) {
+        document.getElementById("login-container").style.display = "block";
+        document.getElementById("profile-container").style.display = "none";
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/auth/profile", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (res.status === 401) {
+          // Token inválido/expirado
+          document.getElementById("login-container").style.display = "block";
+          document.getElementById("profile-container").style.display = "none";
+          return;
+        }
+
+        const data = await res.json();
+        profileData = data.profile;
+        
+        // Preencher formulário
+        document.getElementById("profile-name").value = profileData.displayName || profileData.name;
+        document.getElementById("profile-email").value = profileData.email;
+        document.getElementById("profile-points").textContent = data.wallet;
+        
+        if (profileData.avatarBase64) {
+          document.getElementById("avatar-img").src = profileData.avatarBase64;
+        }
+
+        // Renderizar status do papel
+        renderRoleStatus();
+
+        document.getElementById("login-container").style.display = "none";
+        document.getElementById("profile-container").style.display = "grid";
+
+      } catch (error) {
+        console.error("Erro ao validar sessão:", error);
+      }
+    }
+
+    function renderRoleStatus() {
+      const statusArea = document.getElementById("role-status-area");
+      const selectionArea = document.getElementById("role-selection-area");
+
+      const role = profileData.role;
+      const status = profileData.participantStatus;
+
+      if (role === "admin") {
+        statusArea.innerHTML = `<span class="badge badge-danger">ADMINISTRADOR</span><p style="margin-top: 8px;">Você possui controle absoluto sobre o torneio.</p>`;
+        selectionArea.style.display = "none";
+      } else if (role === "participant" && status === "approved") {
+        statusArea.innerHTML = `<span class="badge badge-success">PARTICIPANTE APROVADO</span><p style="margin-top: 8px;">Você é um enxadrista oficial da tabela do torneio.</p>`;
+        selectionArea.style.display = "none";
+      } else if (status === "pending") {
+        statusArea.innerHTML = `<span class="badge badge-warning">INSCRIÇÃO EM ANÁLISE</span><p style="margin-top: 8px;">Você está na lista de espera. Aguarde o administrador autorizar sua entrada.</p>`;
+        // Permite cancelar e voltar a ser apenas espectador
+      } else if (status === "rejected") {
+        statusArea.innerHTML = `<span class="badge badge-danger">INSCRIÇÃO RECUSADA</span><p style="margin-top: 8px;">Sua solicitação de participante foi rejeitada pela organização. Você permanece como Espectador.</p>`;
+      } else {
+        statusArea.innerHTML = `<span class="badge badge-info">ESPECTADOR</span><p style="margin-top: 8px;">Você está assistindo o torneio de fora. Pode dar palpites e usar o chat.</p>`;
+      }
+    }
+
+    async function selectRole(roleSelection) {
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!token) return;
+
+      try {
+        const res = await fetch("/api/auth/profile", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ roleSelection })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          // Atualiza localStorage
+          let userLocal = JSON.parse(localStorage.getItem("user"));
+          userLocal.role = data.profile.role;
+          userLocal.participantStatus = data.profile.participantStatus;
+          localStorage.setItem("user", JSON.stringify(userLocal));
+
+          window.location.reload();
+        } else {
+          alert(data.error || "Erro ao salvar preferência.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    async function saveProfile(e) {
+      e.preventDefault();
+      const displayName = document.getElementById("profile-name").value;
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      
+      try {
+        const res = await fetch("/api/auth/profile", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ displayName })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          // Atualiza localStorage
+          let userLocal = JSON.parse(localStorage.getItem("user"));
+          userLocal.name = data.profile.displayName;
+          localStorage.setItem("user", JSON.stringify(userLocal));
+          
+          alert("Perfil atualizado com sucesso!");
+          window.location.reload();
+        } else {
+          alert(data.error || "Erro ao atualizar.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    function compressAndUploadAvatar(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = function(event) {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = function() {
+          // Criar canvas para redimensionar (128x128)
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = 128;
+          canvas.height = 128;
+          
+          // Desenhar e recortar centralizado
+          const size = Math.min(img.width, img.height);
+          const xOffset = (img.width - size) / 2;
+          const yOffset = (img.height - size) / 2;
+          
+          ctx.drawImage(img, xOffset, yOffset, size, size, 0, 0, 128, 128);
+          
+          // Converter para jpeg comprimido (Base64)
+          const base64Str = canvas.toDataURL("image/jpeg", 0.8);
+          uploadAvatar(base64Str);
+        };
+      };
+    }
+
+    async function uploadAvatar(avatarBase64) {
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!token) return;
+
+      try {
+        const res = await fetch("/api/auth/profile/avatar", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ avatarBase64 })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          document.getElementById("avatar-img").src = avatarBase64;
+          
+          // Atualiza localStorage
+          let userLocal = JSON.parse(localStorage.getItem("user"));
+          userLocal.avatarBase64 = avatarBase64;
+          localStorage.setItem("user", JSON.stringify(userLocal));
+          
+          alert("Foto atualizada!");
+          window.location.reload();
+        } else {
+          alert(data.error || "Erro ao fazer upload da foto.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+  </script>
+</body>
+</html>

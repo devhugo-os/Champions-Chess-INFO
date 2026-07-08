@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <main class="container">
+    <div class="card">
+      <h2>💬 Chat da Comunidade</h2>
+      <p style="margin-bottom: 16px;">
+        Participe do chat oficial em tempo real. Por limitações de armazenamento (plano gratuito), as mensagens expiram e são excluídas automaticamente a cada 5 horas.
+      </p>
+
+      <div class="chat-window">
+        <!-- Container de mensagens -->
+        <div id="chat-messages" class="chat-messages">
+          <p class="text-secondary" style="text-align: center; margin: auto;">Carregando mensagens do chat...</p>
+        </div>
+        
+        <!-- Área de envio (Oculta se não logado) -->
+        <div id="chat-auth-guard" style="padding: 16px; background-color: var(--bg-secondary); border-top: 1px solid var(--border-color); text-align: center; display: none;">
+          <p class="text-secondary">Você precisa estar logado para enviar mensagens no chat. <a href="/perfil" style="color: var(--accent-color); font-weight: 700; text-decoration: none;">Fazer login &rarr;</a></p>
+        </div>
+
+        <form id="chat-form" class="chat-input-area" style="display: none;">
+          <input type="text" id="chat-input" class="form-control" placeholder="Escreva sua mensagem..." maxlength="500" required autocomplete="off">
+          <button type="submit" class="btn" style="padding: 0 24px;">Enviar</button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <script src="/js/navigation.js"></script>
+  <script src="/js/security.js"></script>
+
+  <script>
+    let socket;
+    let currentUser = null;
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Ler usuário do localStorage
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) currentUser = JSON.parse(userStr);
+      } catch (e) {}
+
+      // Limpar placeholder inicial
+      document.getElementById("chat-messages").innerHTML = "";
+
+      // Exibir formulário de chat se logado
+      if (currentUser) {
+        document.getElementById("chat-form").style.display = "flex";
+        document.getElementById("chat-auth-guard").style.display = "none";
+      } else {
+        document.getElementById("chat-form").style.display = "none";
+        document.getElementById("chat-auth-guard").style.display = "block";
+      }
+
+      // Conectar WebSocket e configurar ouvintes
+      setupSocket();
+
+      // Enviar mensagem
+      document.getElementById("chat-form").addEventListener("submit", sendChatMessage);
+    });
+
+    function setupSocket() {
+      socket = io();
+
+      socket.on("connect", () => {
+        console.log("Conectado ao servidor de chat em tempo real.");
+      });
+
+      // Ouvir nova mensagem
+      socket.on("chat_message_added", (msg) => {
+        appendMessage(msg);
+      });
+
+      // Ouvir mensagem apagada
+      socket.on("chat_message_removed", (msgId) => {
+        document.getElementById(`msg-${msgId}`)?.remove();
+      });
+    }
+
+    function appendMessage(msg) {
+      const messagesContainer = document.getElementById("chat-messages");
+      
+      const isMine = currentUser && msg.uid === currentUser.uid;
+      const bubbleClass = isMine ? "chat-bubble mine" : "chat-bubble";
+      
+      const timeStr = msg.ts ? new Date(msg.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
+      
+      // Permitir botão excluir se for dono ou admin
+      const isAdmin = currentUser && (currentUser.role === "admin" || currentUser.isAdmin);
+      const canDelete = isMine || isAdmin;
+      const deleteBtnHtml = canDelete 
+        ? `<button class="btn-delete-msg" onclick="deleteMessage('${msg.id}')">🗑 Apagar</button>` 
+        : "";
+
+      const msgEl = document.createElement("div");
+      msgEl.className = bubbleClass;
+      msgEl.id = `msg-${msg.id}`;
+      msgEl.innerHTML = `
+        <div class="sender">${msg.name}</div>
+        <div class="text">${escapeHtml(msg.text)}</div>
+        <div class="time" style="display:flex; align-items:center; gap:8px; position:relative; bottom:0; right:0; float:right; font-size:10px;">
+          <span>${timeStr}</span>
+          ${deleteBtnHtml}
+        </div>
+      `;
+
+      messagesContainer.appendChild(msgEl);
+      // Rolar para o final
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    async function sendChatMessage(e) {
+      e.preventDefault();
+      
+      const inputEl = document.getElementById("chat-input");
+      const text = inputEl.value.trim();
+      if (!text) return;
+
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!token) {
+        alert("Sua sessão expirou. Logue novamente na página de perfil.");
+        return;
+      }
+
+      inputEl.disabled = true;
+
+      try {
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          inputEl.value = "";
+        } else {
+          alert(data.error || "Erro ao enviar mensagem.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      } finally {
+        inputEl.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    async function deleteMessage(msgId) {
+      if (!confirm("Deseja apagar essa mensagem do chat?")) return;
+
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!token) {
+        alert("Não autorizado.");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/chat/${msgId}`, {
+          method: "DELETE",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        const data = await res.json();
+        if (!data.success) {
+          alert(data.error || "Erro ao apagar mensagem.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      }
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

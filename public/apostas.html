@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apostas - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <main class="container">
+    <div class="grid-2">
+      <!-- Carteira -->
+      <div class="card">
+        <h2>💰 Sua Carteira</h2>
+        <div style="font-size: 28px; font-weight: 800; color: var(--accent-color); margin-bottom: 8px;">
+          <span id="wallet-balance">0</span> CCIP
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary);">
+          Cada aposta custa exatamente <b>2 CCIP</b>. Ganhos são calculados baseados nas probabilidades do confronto. Você ganha +6 CCIP semanalmente se entrar no site.
+        </p>
+      </div>
+
+      <!-- Fazer Aposta -->
+      <div class="card">
+        <h2>🎲 Nova Aposta</h2>
+        <form id="bet-form">
+          <div class="form-group">
+            <label for="bet-match">Partida Disponível</label>
+            <select id="bet-match" class="form-control" required>
+              <option value="">Selecione uma partida...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="bet-pick">Seu Palpite</label>
+            <select id="bet-pick" class="form-control" required disabled>
+              <option value="">Escolha seu palpite...</option>
+              <option value="A">Vitória Jogador A</option>
+              <option value="draw">Empate</option>
+              <option value="B">Vitória Jogador B</option>
+            </select>
+          </div>
+          
+          <div id="odds-estimation-box" style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border-color); display: none;">
+            <div style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px;">Probabilidades (VED)</div>
+            <div class="bet-odds-bars" id="estimation-odds-bars">
+              <!-- Barras coloridas -->
+            </div>
+            <div style="font-size: 13px; font-weight: 700; color: var(--accent-color); margin-top: 8px;" id="estimation-return">
+              Retorno Estimado: 0 CCIP
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-bet" class="btn" style="width: 100%;" disabled>Registrar Palpite</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Banner de Desfazer Aposta -->
+    <div id="undo-banner" class="undo-banner" style="display: none;">
+      <span id="undo-text" style="font-size: 13px;">Aposta registrada! Desfazer em <b id="undo-countdown">5</b>s</span>
+      <button class="btn btn-danger" id="btn-undo-bet" style="padding: 6px 12px; font-size:12px;">Desfazer</button>
+    </div>
+
+    <!-- Minhas Apostas -->
+    <div class="card" style="margin-top: 24px;">
+      <h2>📋 Seus Palpites Registrados</h2>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Partida</th>
+              <th>Etapa</th>
+              <th>Palpite</th>
+              <th>Ganho Possível</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="my-bets-body">
+            <tr><td colspan="5" style="text-align:center;" class="text-secondary">Carregando palpites...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Rankings e Feeds em Tempo Real -->
+    <div class="grid-2" style="margin-top: 24px;">
+      <!-- Feed de Apostas -->
+      <div class="card">
+        <h2>⏱️ Palpites Recentes (Feed Geral)</h2>
+        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuário</th>
+                <th>Partida</th>
+                <th>Palpite</th>
+                <th>Data/Hora</th>
+              </tr>
+            </thead>
+            <tbody id="bets-feed-body">
+              <tr><td colspan="4" style="text-align:center;" class="text-secondary">Aguardando novos palpites...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Rankings -->
+      <div class="card">
+        <h2>📊 Ranking de Apostadores</h2>
+        <div style="margin-bottom: 12px; display:flex; gap:8px;">
+          <select id="rank-type-filter" class="form-control" style="padding: 8px;">
+            <option value="wins">Mais Acertos (Vitoriosos)</option>
+            <option value="points">Mais CCIP (Ricos)</option>
+            <option value="total">Mais Apostas Feitas</option>
+          </select>
+        </div>
+        <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr id="rank-table-headers">
+                <th>Pos</th>
+                <th>Usuário</th>
+                <th>Acertos</th>
+                <th>Taxa</th>
+              </tr>
+            </thead>
+            <tbody id="rank-table-body">
+              <tr><td colspan="4" style="text-align:center;" class="text-secondary">Carregando rankings...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <script src="/js/navigation.js"></script>
+  <script src="/js/security.js"></script>
+
+  <script>
+    let socket;
+    let currentUser = null;
+    let playersMap = {};
+    let matchesList = [];
+    let activeUndo = null;
+    let undoTimer = null;
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      // Ler usuário do localStorage
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) currentUser = JSON.parse(userStr);
+      } catch (e) {}
+
+      if (!currentUser) {
+        alert("Você precisa fazer login para acessar a área de palpites.");
+        window.location.href = "/perfil";
+        return;
+      }
+
+      // Inicializar
+      await loadInitialData();
+
+      // Socket.io
+      setupSocket();
+
+      // Listeners do form
+      document.getElementById("bet-match").addEventListener("change", onMatchSelect);
+      document.getElementById("bet-pick").addEventListener("change", updateOddsReturn);
+      document.getElementById("bet-form").addEventListener("submit", submitBet);
+      document.getElementById("rank-type-filter").addEventListener("change", renderRankings);
+      document.getElementById("btn-undo-bet").addEventListener("click", performUndo);
+    });
+
+    async function loadInitialData() {
+      try {
+        // Carregar jogadores
+        const playersRes = await fetch("/api/players");
+        const listPlayers = await playersRes.json();
+        listPlayers.forEach(p => { playersMap[p.id] = p.name; });
+
+        // Carregar saldo e perfil
+        const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+        const profileRes = await fetch("/api/auth/profile", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        const profileData = await profileRes.json();
+        
+        document.getElementById("wallet-balance").textContent = profileData.wallet;
+
+        // Carregar partidas
+        const matchesRes = await fetch("/api/matches");
+        matchesList = await matchesRes.json();
+
+        // Carregar minhas apostas
+        await loadMyBets();
+
+        // Carregar rankings
+        await loadRankings();
+
+        // Preencher select de partidas (apenas partidas futuras e não apostadas)
+        populateMatchSelect();
+
+      } catch (error) {
+        console.error("Erro no carregamento inicial das apostas:", error);
+      }
+    }
+
+    function populateMatchSelect() {
+      const select = document.getElementById("bet-match");
+      const alreadyBetMatchIds = new Set(myBetsList.map(b => b.matchId));
+
+      const availableMatches = matchesList.filter(m => {
+        // Sem resultado definido
+        if (m.result || m.status === "finished") return false;
+        // Se já apostou nessa partida
+        if (alreadyBetMatchIds.has(m.id)) return false;
+        // Data futura
+        const matchDate = m.date ? new Date(m.date) : null;
+        return !matchDate || matchDate.getTime() > Date.now();
+      });
+
+      if (availableMatches.length === 0) {
+        select.innerHTML = `<option value="">Nenhuma partida disponível para palpite</option>`;
+        document.getElementById("bet-pick").disabled = true;
+        document.getElementById("btn-submit-bet").disabled = true;
+        return;
+      }
+
+      select.innerHTML = `<option value="">Escolha um confronto...</option>` + availableMatches.map(m => {
+        const playerA = playersMap[m.aId] || "Desconhecido";
+        const playerB = playersMap[m.bId] || "Desconhecido";
+        const stageStr = m.stage === "groups" ? `Grupo ${m.group}` : m.stage.toUpperCase();
+        return `<option value="${m.id}">${playerA} × ${playerB} (${stageStr})</option>`;
+      }).join("");
+    }
+
+    let myBetsList = [];
+    async function loadMyBets() {
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      const tbody = document.getElementById("my-bets-body");
+      
+      try {
+        const res = await fetch("/api/bets/my", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        myBetsList = await res.json();
+
+        if (myBetsList.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;" class="text-secondary">Você ainda não registrou palpites.</td></tr>`;
+          return;
+        }
+
+        const matchesMap = {};
+        matchesList.forEach(m => { matchesMap[m.id] = m; });
+
+        tbody.innerHTML = myBetsList.map(b => {
+          const m = matchesMap[b.matchId];
+          const name = m ? `${playersMap[m.aId]} × ${playersMap[m.bId]}` : "Partida Excluída";
+          const stage = m ? (m.stage === "groups" ? `Grupo ${m.group}` : m.stage.toUpperCase()) : "—";
+          const pickLabel = b.pick === "A" ? "Vitória A" : (b.pick === "B" ? "Vitória B" : "Empate");
+          
+          let statusBadge = `<span class="badge badge-info">Pendente</span>`;
+          if (b.status === "ganhou") {
+            statusBadge = `<span class="badge badge-success">Ganhou +${b.settledPayout || b.payoutPoints} CCIP</span>`;
+          } else if (b.status === "perdeu") {
+            statusBadge = `<span class="badge badge-danger">Perdeu</span>`;
+          } else if (b.status === "postponed") {
+            statusBadge = `<span class="badge badge-warning">Adiada (Reembolsada)</span>`;
+          }
+
+          return `
+            <tr>
+              <td><b>${name}</b></td>
+              <td><span class="badge" style="background:rgba(56,139,253,0.08); color:#58a6ff;">${stage}</span></td>
+              <td>${pickLabel}</td>
+              <td style="color:var(--accent-color); font-weight:700;">${b.payoutPoints} CCIP</td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        }).join("");
+      } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Erro ao carregar apostas.</td></tr>`;
+      }
+    }
+
+    let oddsCalculated = null;
+
+    function onMatchSelect() {
+      const matchId = document.getElementById("bet-match").value;
+      const pickSelect = document.getElementById("bet-pick");
+      const oddsBox = document.getElementById("odds-estimation-box");
+
+      if (!matchId) {
+        pickSelect.disabled = true;
+        pickSelect.value = "";
+        oddsBox.style.display = "none";
+        document.getElementById("btn-submit-bet").disabled = true;
+        return;
+      }
+
+      const match = matchesList.find(m => m.id === matchId);
+      if (!match) return;
+
+      // Calcular probabilidade baseada no histórico dos dois enxadristas
+      const statsA = getPlayerGroupStats(match.aId);
+      const statsB = getPlayerGroupStats(match.bId);
+
+      const drawA = (statsA.draws + 1) / (statsA.played + 3);
+      const drawB = (statsB.draws + 1) / (statsB.played + 3);
+      
+      let pE = (drawA + drawB) / 2;
+      pE = Math.max(0.05, Math.min(0.45, pE));
+
+      const wlA = (statsA.wins + 1) / ((statsA.wins + statsA.losses) + 2);
+      const wlB = (statsB.wins + 1) / ((statsB.wins + statsB.losses) + 2);
+      
+      const rem = Math.max(0, 1 - pE);
+      const sum = (wlA + wlB) || 1;
+      
+      let pA = rem * (wlA / sum);
+      let pB = rem - pA;
+
+      const A = Math.round(Math.max(0, Math.min(100, pA * 100)));
+      const E = Math.round(Math.max(0, Math.min(100, pE * 100)));
+      const D = Math.max(0, 100 - A - E);
+
+      oddsCalculated = { A, E, D };
+
+      // Renderizar barra
+      document.getElementById("estimation-odds-bars").innerHTML = `
+        <div class="win-a" style="width:${A}%;" title="Vitória Jogador A">${A}%</div>
+        <div class="draw" style="width:${E}%;" title="Empate">${E}%</div>
+        <div class="win-b" style="width:${D}%;" title="Vitória Jogador B">${D}%</div>
+      `;
+
+      pickSelect.disabled = false;
+      oddsBox.style.display = "block";
+      updateOddsReturn();
+    }
+
+    function getPlayerGroupStats(playerId) {
+      const finishedGroupsMatches = matchesList.filter(m => m.stage === "groups" && m.status === "finished" && (m.aId === playerId || m.bId === playerId));
+      let wins = 0, draws = 0, losses = 0, played = 0;
+      
+      for (const m of finishedGroupsMatches) {
+        played++;
+        if (m.result === "draw") draws++;
+        else if (m.result === "A") {
+          if (m.aId === playerId) wins++; else losses++;
+        } else if (m.result === "B") {
+          if (m.bId === playerId) wins++; else losses++;
+        }
+      }
+      return { wins, draws, losses, played };
+    }
+
+    function updateOddsReturn() {
+      const pick = document.getElementById("bet-pick").value;
+      const returnEl = document.getElementById("estimation-return");
+      const submitBtn = document.getElementById("btn-submit-bet");
+
+      if (!pick || !oddsCalculated) {
+        returnEl.textContent = "Retorno Estimado: 0 CCIP";
+        submitBtn.disabled = true;
+        return;
+      }
+
+      const probPct = pick === "A" ? oddsCalculated.A : (pick === "B" ? oddsCalculated.D : oddsCalculated.E);
+      let pr = probPct / 100;
+      if (pr <= 0) pr = 0.01;
+      
+      const dec = Math.max(1.5, Math.min(5.0, 0.9 * (1 / pr)));
+      const payout = Math.max(2, Math.round(2 * dec));
+
+      returnEl.innerHTML = `Retorno Estimado: <b>${payout} CCIP</b> (Lucro de ${payout - 2} CCIP)`;
+      submitBtn.disabled = false;
+    }
+
+    async function submitBet(e) {
+      e.preventDefault();
+      
+      const matchId = document.getElementById("bet-match").value;
+      const pick = document.getElementById("bet-pick").value;
+      
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!token) return;
+
+      const submitBtn = document.getElementById("btn-submit-bet");
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/bets", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ matchId, pick })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          // Ativa o banner de desfazer (5 segundos)
+          triggerUndoBanner(data.betId, data.refund);
+          
+          // Reset form e recarrega carteira / apostas
+          document.getElementById("bet-form").reset();
+          onMatchSelect();
+          await loadInitialData();
+        } else {
+          alert(data.error || "Erro ao apostar.");
+        }
+      } catch (error) {
+        alert("Erro de conexão.");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    }
+
+    function triggerUndoBanner(betId, refund) {
+      activeUndo = { betId, refund };
+      let countdown = 5;
+      
+      const banner = document.getElementById("undo-banner");
+      const countEl = document.getElementById("undo-countdown");
+      
+      countEl.textContent = countdown;
+      banner.style.display = "flex";
+
+      if (undoTimer) clearInterval(undoTimer);
+      
+      undoTimer = setInterval(async () => {
+        countdown--;
+        countEl.textContent = countdown;
+        if (countdown <= 0) {
+          clearInterval(undoTimer);
+          banner.style.display = "none";
+          activeUndo = null;
+        }
+      }, 1000);
+    }
+
+    async function performUndo() {
+      if (!activeUndo) return;
+      
+      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!token) return;
+
+      clearInterval(undoTimer);
+      document.getElementById("undo-banner").style.display = "none";
+
+      try {
+        const res = await fetch("/api/bets/undo", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ betId: activeUndo.betId })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          alert("Aposta desfeita e saldo reembolsado com sucesso!");
+          activeUndo = null;
+          await loadInitialData();
+        } else {
+          alert(data.error || "Não foi possível desfazer a aposta.");
+        }
+      } catch (error) {
+        alert("Erro de conexão ao desfazer.");
+      }
+    }
+
+    let globalRankings = {};
+    async function loadRankings() {
+      try {
+        const res = await fetch("/api/rankings");
+        globalRankings = await res.json();
+        renderRankings();
+      } catch (error) {
+        console.error("Erro ao carregar rankings:", error);
+      }
+    }
+
+    function renderRankings() {
+      const type = document.getElementById("rank-type-filter").value;
+      const headers = document.getElementById("rank-table-headers");
+      const tbody = document.getElementById("rank-table-body");
+      
+      const profiles = globalRankings.profilesMap || {};
+      const wallets = globalRankings.walletsMap || {};
+
+      const getUsername = (uid) => {
+        const p = profiles[uid] || {};
+        const w = wallets[uid] || {};
+        return p.displayName || w.email?.split("@")[0] || uid.slice(0, 6);
+      };
+
+      if (type === "wins") {
+        headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Acertos</th><th style="text-align:center;">Taxa</th>`;
+        const list = globalRankings.bestByWins || [];
+        if (list.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Sem dados no ranking.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = list.map((r, i) => `
+          <tr>
+            <td><b>${i + 1}</b></td>
+            <td><b>${getUsername(r.uid)}</b></td>
+            <td style="text-align:center; color: var(--accent-color); font-weight:700;">${r.wins}</td>
+            <td style="text-align:center;">${Math.round(r.rate * 100)}%</td>
+          </tr>
+        `).join("");
+      } else if (type === "points") {
+        headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Saldo CCIP</th>`;
+        const list = globalRankings.mostPoints || [];
+        if (list.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;" class="text-secondary">Sem dados no ranking.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = list.map((r, i) => `
+          <tr>
+            <td><b>${i + 1}</b></td>
+            <td><b>${getUsername(r.uid)}</b></td>
+            <td style="text-align:center; color: var(--accent-color); font-weight:700;">${r.pts} CCIP</td>
+          </tr>
+        `).join("");
+      } else {
+        headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Total Apostado</th>`;
+        const list = globalRankings.mostBets || [];
+        if (list.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;" class="text-secondary">Sem dados no ranking.</td></tr>`;
+          return;
+        }
+        tbody.innerHTML = list.map((r, i) => `
+          <tr>
+            <td><b>${i + 1}</b></td>
+            <td><b>${getUsername(r.uid)}</b></td>
+            <td style="text-align:center;">${r.total}</td>
+          </tr>
+        `).join("");
+      }
+    }
+
+    function setupSocket() {
+      socket = io();
+
+      // Ouvir nova aposta adicionada no feed em tempo real
+      socket.on("bet_feed_added", (bet) => {
+        addBetToFeed(bet);
+      });
+
+      // Recarrega rankings quando aposta for reconciliada
+      socket.on("match_update", async () => {
+        await loadInitialData();
+      });
+    }
+
+    function addBetToFeed(bet) {
+      const tbody = document.getElementById("bets-feed-body");
+      const noBetsRow = tbody.querySelector(".text-secondary");
+      if (noBetsRow && noBetsRow.closest("tr")) {
+        noBetsRow.closest("tr").remove();
+      }
+
+      const matchName = `${bet.aName} × ${bet.bName}`;
+      const pickLabel = bet.pick === "A" ? "Vitória A" : (bet.pick === "B" ? "Vitória B" : "Empate");
+      const dateStr = new Date(bet.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><b>${bet.userId}</b></td>
+        <td>${matchName}</td>
+        <td><span class="badge badge-info" style="background:rgba(16,185,129,0.08); color:var(--accent-color);">${pickLabel}</span></td>
+        <td>${dateStr}</td>
+      `;
+      tbody.prepend(tr);
+
+      // Limitar feed a 10 linhas
+      if (tbody.children.length > 10) {
+        tbody.removeChild(tbody.lastChild);
+      }
+    }
+  </script>
+</body>
+</html>
