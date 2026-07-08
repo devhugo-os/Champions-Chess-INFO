@@ -449,6 +449,8 @@
           submitBtn.disabled = false;
         }
       };
+    }
+
     async function cancelRegistration() {
       if (!confirm("Deseja cancelar sua solicitação de inscrição para participar do torneio?")) return;
       if (!window.auth.currentUser) return;
