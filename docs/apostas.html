@@ -526,8 +526,7 @@
       let list = [...usersList];
 
       if (type === "wins") {
-        headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Acertos</th><th style="text-align:center;">Taxa</th>`;
-        // Filtrar e ordenar por acertos (betsWon)
+        headers.innerHTML = `<th style="width: 50px; text-align:center;">Pos</th><th style="padding-left: 10px;">Usuário</th><th style="text-align:center;">Acertos</th><th style="text-align:center;">Taxa</th>`;
         list.forEach(u => {
           u.wins = u.betsWon || 0;
           u.total = u.betsTotal || 0;
@@ -537,30 +536,30 @@
         
         tbody.innerHTML = list.map((r, i) => `
           <tr>
-            <td><b>${i + 1}</b></td>
-            <td><b>${r.name || r.displayName || 'Usuário'}</b></td>
+            <td style="text-align:center; padding: 12px 6px;"><b>${i + 1}</b></td>
+            <td style="padding-left: 10px;"><b>${r.name || r.displayName || 'Usuário'}</b></td>
             <td style="text-align:center; color: var(--accent-color); font-weight:700;">${r.wins}</td>
             <td style="text-align:center;">${Math.round(r.rate * 100)}%</td>
           </tr>
         `).join("");
       } else if (type === "points") {
-        headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Saldo CCIP</th>`;
+        headers.innerHTML = `<th style="width: 50px; text-align:center;">Pos</th><th style="padding-left: 10px;">Usuário</th><th style="text-align:center;">Saldo CCIP</th>`;
         list.sort((a, b) => (b.points || 0) - (a.points || 0) || a.name.localeCompare(b.name));
         tbody.innerHTML = list.map((r, i) => `
           <tr>
-            <td><b>${i + 1}</b></td>
-            <td><b>${r.name || r.displayName || 'Usuário'}</b></td>
+            <td style="text-align:center; padding: 12px 6px;"><b>${i + 1}</b></td>
+            <td style="padding-left: 10px;"><b>${r.name || r.displayName || 'Usuário'}</b></td>
             <td style="text-align:center; color: var(--accent-color); font-weight:700;">${r.points || 0} CCIP</td>
           </tr>
         `).join("");
       } else {
-        headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Total Apostado</th>`;
+        headers.innerHTML = `<th style="width: 50px; text-align:center;">Pos</th><th style="padding-left: 10px;">Usuário</th><th style="text-align:center;">Total Apostado</th>`;
         list.forEach(u => u.total = u.betsTotal || 0);
         list.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
         tbody.innerHTML = list.map((r, i) => `
           <tr>
-            <td><b>${i + 1}</b></td>
-            <td><b>${r.name || r.displayName || 'Usuário'}</b></td>
+            <td style="text-align:center; padding: 12px 6px;"><b>${i + 1}</b></td>
+            <td style="padding-left: 10px;"><b>${r.name || r.displayName || 'Usuário'}</b></td>
             <td style="text-align:center;">${r.total}</td>
           </tr>
         `).join("");
