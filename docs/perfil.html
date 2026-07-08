@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Seu Perfil - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -78,8 +78,15 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
     let profileData = null;
@@ -91,49 +98,78 @@
       // Configurar upload de imagem
       document.getElementById("avatar-input").addEventListener("change", compressAndUploadAvatar);
 
-      checkSession();
+      // Aguarda inicialização do Firebase
+      const interval = setInterval(() => {
+        if (window.db && window.auth) {
+          clearInterval(interval);
+          checkSession();
+        }
+      }, 100);
     });
 
     async function checkSession() {
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      
-      if (!token) {
-        window.location.href = "/login";
+      const user = window.auth.currentUser || await new Promise(resolve => {
+        const unsubscribe = window.auth.onAuthStateChanged(u => {
+          unsubscribe();
+          resolve(u);
+        });
+      });
+
+      if (!user) {
+        window.location.href = "login.html";
         return;
       }
 
       try {
-        const res = await fetch("/api/auth/profile", {
-          headers: {
-            "Authorization": `Bearer ${token}`
+        const docRef = window.db.collection("users").doc(user.uid);
+        
+        docRef.onSnapshot(async (doc) => {
+          if (!doc.exists) return;
+          
+          profileData = doc.data();
+          
+          // Preencher formulário
+          document.getElementById("profile-name").value = profileData.displayName || profileData.name;
+          document.getElementById("profile-email").value = profileData.email;
+          document.getElementById("profile-points").textContent = profileData.points || 0;
+          
+          if (profileData.avatarBase64) {
+            document.getElementById("avatar-img").src = profileData.avatarBase64;
           }
+
+          // Renderizar status do papel
+          renderRoleStatus();
+
+          // Verificar recompensa semanal (Check-in)
+          await checkWeeklyReward(user.uid, profileData);
         });
-        
-        if (res.status === 401) {
-          // Limpa sessão e redireciona
-          localStorage.removeItem("user");
-          document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-          window.location.href = "/login";
-          return;
-        }
-
-        const data = await res.json();
-        profileData = data.profile;
-        
-        // Preencher formulário
-        document.getElementById("profile-name").value = profileData.displayName || profileData.name;
-        document.getElementById("profile-email").value = profileData.email;
-        document.getElementById("profile-points").textContent = data.wallet;
-        
-        if (profileData.avatarBase64) {
-          document.getElementById("avatar-img").src = profileData.avatarBase64;
-        }
-
-        // Renderizar status do papel
-        renderRoleStatus();
 
       } catch (error) {
-        console.error("Erro ao validar sessão:", error);
+        console.error("Erro ao carregar sessão do perfil:", error);
+      }
+    }
+
+    async function checkWeeklyReward(uid, data) {
+      const now = Date.now();
+      const lastCheckIn = data.lastCheckInDate ? (data.lastCheckInDate.seconds * 1000 || data.lastCheckInDate) : 0;
+      const MS_IN_A_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+      // Se passou uma semana ou nunca fez check-in, dar +6 pontos
+      if (now - lastCheckIn >= MS_IN_A_WEEK) {
+        const userRef = window.db.collection("users").doc(uid);
+        try {
+          await window.db.runTransaction(async (transaction) => {
+            const doc = await transaction.get(userRef);
+            const currentPoints = doc.data().points || 0;
+            transaction.update(userRef, {
+              points: currentPoints + 6,
+              lastCheckInDate: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          });
+          alert("🎁 Recompensa Semanal! Você ganhou +6 CCIP de saldo por entrar esta semana!");
+        } catch (error) {
+          console.error("Erro ao aplicar recompensa semanal:", error);
+        }
       }
     }
 
@@ -152,73 +188,69 @@
         selectionArea.style.display = "none";
       } else if (status === "pending") {
         statusArea.innerHTML = `<span class="badge badge-warning">INSCRIÇÃO EM ANÁLISE</span><p style="margin-top: 8px;">Você está na lista de espera. Aguarde o administrador autorizar sua entrada.</p>`;
+        selectionArea.style.display = "none";
       } else if (status === "rejected") {
         statusArea.innerHTML = `<span class="badge badge-danger">INSCRIÇÃO RECUSADA</span><p style="margin-top: 8px;">Sua solicitação de participante foi rejeitada pela organização. Você permanece como Espectador.</p>`;
+        selectionArea.style.display = "flex";
       } else {
         statusArea.innerHTML = `<span class="badge badge-info">ESPECTADOR</span><p style="margin-top: 8px;">Você está assistindo o torneio de fora. Pode dar palpites e usar o chat.</p>`;
+        selectionArea.style.display = "flex";
       }
     }
 
     async function selectRole(roleSelection) {
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) return;
+      if (!window.auth.currentUser) return;
+
+      const uid = window.auth.currentUser.uid;
+      const userRef = window.db.collection("users").doc(uid);
 
       try {
-        const res = await fetch("/api/auth/profile", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ roleSelection })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          // Atualiza localStorage
-          let userLocal = JSON.parse(localStorage.getItem("user"));
-          userLocal.role = data.profile.role;
-          userLocal.participantStatus = data.profile.participantStatus;
-          localStorage.setItem("user", JSON.stringify(userLocal));
+        if (roleSelection === "participant") {
+          // Submeter à waitlist
+          await window.db.collection("waitlist").doc(uid).set({
+            uid: uid,
+            name: profileData.displayName || profileData.name,
+            email: profileData.email,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
 
-          window.location.reload();
+          // Atualizar perfil
+          await userRef.update({
+            participantStatus: "pending"
+          });
+          alert("Solicitação enviada para a fila de espera!");
         } else {
-          alert(data.error || "Erro ao salvar preferência.");
+          // Espectador
+          await userRef.update({
+            role: "spectator",
+            participantStatus: "none"
+          });
+          alert("Sua inscrição foi alterada para Espectador.");
         }
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao selecionar papel:", error);
+        alert("Erro ao salvar sua escolha. Verifique suas permissões.");
       }
     }
 
     async function saveProfile(e) {
       e.preventDefault();
-      const displayName = document.getElementById("profile-name").value;
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+      if (!window.auth.currentUser) return;
+
+      const displayName = document.getElementById("profile-name").value.trim();
+      const userRef = window.db.collection("users").doc(window.auth.currentUser.uid);
       
       try {
-        const res = await fetch("/api/auth/profile", {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ displayName })
-        });
+        await userRef.update({ displayName });
         
-        const data = await res.json();
-        if (data.success) {
-          // Atualiza localStorage
-          let userLocal = JSON.parse(localStorage.getItem("user"));
-          userLocal.name = data.profile.displayName;
-          localStorage.setItem("user", JSON.stringify(userLocal));
-          
-          alert("Perfil atualizado com sucesso!");
-          window.location.reload();
-        } else {
-          alert(data.error || "Erro ao atualizar.");
-        }
+        let userLocal = JSON.parse(localStorage.getItem("user"));
+        userLocal.name = displayName;
+        localStorage.setItem("user", JSON.stringify(userLocal));
+        
+        alert("Nome do perfil atualizado com sucesso!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao atualizar nome:", error);
+        alert("Erro ao atualizar perfil.");
       }
     }
 
@@ -250,34 +282,22 @@
     }
 
     async function uploadAvatar(avatarBase64) {
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) return;
+      if (!window.auth.currentUser) return;
+
+      const userRef = window.db.collection("users").doc(window.auth.currentUser.uid);
 
       try {
-        const res = await fetch("/api/auth/profile/avatar", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ avatarBase64 })
-        });
+        await userRef.update({ avatarBase64 });
         
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById("avatar-img").src = avatarBase64;
-          
-          let userLocal = JSON.parse(localStorage.getItem("user"));
-          userLocal.avatarBase64 = avatarBase64;
-          localStorage.setItem("user", JSON.stringify(userLocal));
-          
-          alert("Foto atualizada!");
-          window.location.reload();
-        } else {
-          alert(data.error || "Erro ao fazer upload da foto.");
-        }
+        let userLocal = JSON.parse(localStorage.getItem("user"));
+        userLocal.avatarBase64 = avatarBase64;
+        localStorage.setItem("user", JSON.stringify(userLocal));
+        
+        document.getElementById("avatar-img").src = avatarBase64;
+        alert("Foto de perfil atualizada!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao fazer upload do avatar:", error);
+        alert("Erro ao atualizar foto.");
       }
     }
   </script>

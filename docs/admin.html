@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Administração - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -198,19 +198,23 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
-    let token = "";
     let currentUser = null;
     let players = [];
     let matches = [];
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      // Ler token de cookie
-      token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      
+    document.addEventListener("DOMContentLoaded", () => {
+      // Ler usuário do localStorage
       try {
         const userStr = localStorage.getItem("user");
         if (userStr) currentUser = JSON.parse(userStr);
@@ -219,12 +223,18 @@
       // Segurança: Redireciona se não for Admin
       if (!currentUser || (currentUser.role !== "admin" && !currentUser.isAdmin)) {
         alert("Acesso negado. Apenas administradores podem acessar esta página.");
-        window.location.href = "/perfil";
+        window.location.href = "perfil.html";
         return;
       }
 
-      // Inicializar dados do painel
-      await loadPanelData();
+      // Aguarda a inicialização do Firebase
+      const interval = setInterval(() => {
+        if (window.db && window.rtdb) {
+          clearInterval(interval);
+          loadPanelData();
+          autoCleanChatTrigger();
+        }
+      }, 100);
 
       // Submit do form de partidas
       document.getElementById("match-form").addEventListener("submit", saveMatch);
@@ -236,107 +246,114 @@
     async function loadPanelData() {
       try {
         // 1. Carregar jogadores
-        const playersRes = await fetch("/api/players");
-        players = await playersRes.json();
-        renderPlayersList();
-        populatePlayersSelects();
+        window.db.collection("players").onSnapshot(snapshot => {
+          players = [];
+          snapshot.forEach(doc => { players.push({ id: doc.id, ...doc.data() }); });
+          renderPlayersList();
+          populatePlayersSelects();
+        });
 
         // 2. Carregar partidas
-        const matchesRes = await fetch("/api/matches");
-        matches = await matchesRes.json();
-        renderMatchesList();
+        window.db.collection("matches").onSnapshot(snapshot => {
+          matches = [];
+          snapshot.forEach(doc => { matches.push({ id: doc.id, ...doc.data() }); });
+          renderMatchesList();
+        });
 
         // 3. Carregar fila de espera
-        await loadWaitlist();
+        window.db.collection("waitlist").onSnapshot(snapshot => {
+          const tbody = document.getElementById("waitlist-body");
+          if (snapshot.empty) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Nenhuma inscrição pendente na fila de espera.</td></tr>`;
+            return;
+          }
+
+          const waitlist = [];
+          snapshot.forEach(doc => { waitlist.push({ id: doc.id, ...doc.data() }); });
+
+          tbody.innerHTML = waitlist.map(w => `
+            <tr>
+              <td><b>${w.name}</b></td>
+              <td>${w.email}</td>
+              <td>
+                <select id="group-select-${w.id}" class="form-control" style="padding: 6px 12px; width: 100px;">
+                  <option value="A">Grupo A</option>
+                  <option value="B">Grupo B</option>
+                </select>
+              </td>
+              <td>
+                <div style="display:flex; gap:8px;">
+                  <button class="btn" style="padding: 6px 12px; font-size:12px;" onclick="approveUser('${w.id}')">Aprovar</button>
+                  <button class="btn btn-danger" style="padding: 6px 12px; font-size:12px;" onclick="rejectUser('${w.id}')">Recusar</button>
+                </div>
+              </td>
+            </tr>
+          `).join("");
+        });
 
       } catch (error) {
         console.error("Erro ao carregar dados do painel:", error);
       }
     }
 
-    async function loadWaitlist() {
-      const tbody = document.getElementById("waitlist-body");
-      try {
-        const res = await fetch("/api/players/waitlist/list", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const waitlist = await res.json();
-
-        if (waitlist.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Nenhuma inscrição pendente na fila de espera.</td></tr>`;
-          return;
-        }
-
-        tbody.innerHTML = waitlist.map(w => `
-          <tr>
-            <td><b>${w.displayName || w.name}</b></td>
-            <td>${w.email}</td>
-            <td>
-              <select id="group-select-${w.uid}" class="form-control" style="padding: 6px 12px; width: 100px;">
-                <option value="A">Grupo A</option>
-                <option value="B">Grupo B</option>
-              </select>
-            </td>
-            <td>
-              <div style="display:flex; gap:8px;">
-                <button class="btn" style="padding: 6px 12px; font-size:12px;" onclick="approveUser('${w.uid}')">Aprovar</button>
-                <button class="btn btn-danger" style="padding: 6px 12px; font-size:12px;" onclick="rejectUser('${w.uid}')">Recusar</button>
-              </div>
-            </td>
-          </tr>
-        `).join("");
-      } catch (error) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">Erro ao carregar fila de espera.</td></tr>`;
-      }
-    }
-
     async function approveUser(uid) {
       const group = document.getElementById(`group-select-${uid}`).value;
-      
+      const waitlistRef = window.db.collection("waitlist").doc(uid);
+      const userRef = window.db.collection("users").doc(uid);
+      const playerRef = window.db.collection("players").doc(uid);
+
       try {
-        const res = await fetch("/api/players/waitlist/approve", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ uid, group })
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) throw new Error("Usuário não cadastrado.");
+        const userName = userDoc.data().displayName || userDoc.data().name;
+
+        await window.db.runTransaction(async (transaction) => {
+          // 1. Criar jogador
+          transaction.set(playerRef, {
+            name: userName,
+            group: group,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          // 2. Atualizar perfil de usuário
+          transaction.update(userRef, {
+            role: "participant",
+            participantStatus: "approved",
+            group: group
+          });
+
+          // 3. Deletar waitlist
+          transaction.delete(waitlistRef);
         });
-        
-        const data = await res.json();
-        if (data.success) {
-          alert("Jogador aprovado com sucesso!");
-          await loadPanelData();
-        } else {
-          alert(data.error || "Erro ao aprovar.");
-        }
+
+        alert("Jogador aprovado com sucesso!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao aprovar:", error);
+        alert("Erro ao aprovar jogador.");
       }
     }
 
     async function rejectUser(uid) {
       if (!confirm("Deseja recusar esta inscrição?")) return;
       
+      const waitlistRef = window.db.collection("waitlist").doc(uid);
+      const userRef = window.db.collection("users").doc(uid);
+
       try {
-        const res = await fetch("/api/players/waitlist/reject", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ uid })
+        await window.db.runTransaction(async (transaction) => {
+          // 1. Atualizar perfil de usuário
+          transaction.update(userRef, {
+            participantStatus: "rejected"
+          });
+
+          // 2. Deletar waitlist
+          transaction.delete(waitlistRef);
         });
-        
-        const data = await res.json();
-        if (data.success) {
-          alert("Inscrição recusada.");
-          await loadPanelData();
-        } else {
-          alert(data.error || "Erro ao processar.");
-        }
+
+        alert("Inscrição recusada.");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao rejeitar:", error);
+        alert("Erro ao recusar inscrição.");
       }
     }
 
@@ -380,28 +397,26 @@
       const name = document.getElementById("player-name").value.trim();
       const group = document.getElementById("player-group").value;
 
-      const url = id ? `/api/players/${id}` : "/api/players";
-      const method = id ? "PUT" : "POST";
-
       try {
-        const res = await fetch(url, {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ name, group })
-        });
-        
-        const data = await res.json();
-        if (data.id) {
-          cancelPlayerEdit();
-          await loadPanelData();
+        if (id) {
+          // Atualizar
+          await window.db.collection("players").doc(id).update({ name, group });
+          // Sincroniza se o usuário tiver perfil correspondente
+          await window.db.collection("users").doc(id).update({ displayName: name, name, group }).catch(() => {});
         } else {
-          alert(data.error || "Erro ao salvar jogador.");
+          // Criar
+          const newDoc = window.db.collection("players").doc();
+          await newDoc.set({
+            name,
+            group,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
         }
+        cancelPlayerEdit();
+        alert("Jogador salvo!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao salvar jogador:", error);
+        alert("Erro ao salvar jogador.");
       }
     }
 
@@ -422,21 +437,15 @@
     }
 
     async function deletePlayer(id) {
-      if (!confirm("Tem certeza que deseja excluir este jogador? Isso não afetará as partidas já salvas dele, mas é recomendado verificar.")) return;
+      if (!confirm("Tem certeza que deseja excluir este jogador?")) return;
 
       try {
-        const res = await fetch(`/api/players/${id}`, {
-          method: "DELETE",
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          await loadPanelData();
-        } else {
-          alert(data.error || "Erro ao excluir.");
-        }
+        await window.db.collection("players").doc(id).delete();
+        await window.db.collection("users").doc(id).update({ role: "spectator", participantStatus: "none" }).catch(() => {});
+        alert("Jogador excluído.");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao excluir jogador:", error);
+        alert("Erro ao excluir.");
       }
     }
 
@@ -497,38 +506,119 @@
       const group = document.getElementById("match-group").value;
       const date = document.getElementById("match-date").value;
       const code = document.getElementById("match-code").value.trim();
-      const status = document.getElementById("match-status").value;
-      const result = document.getElementById("match-result").value;
-
-      const url = id ? `/api/matches/${id}` : "/api/matches";
-      const method = id ? "PUT" : "POST";
-
-      const payload = { aId, bId, stage, group, date, code };
-      if (id) {
-        payload.status = status;
-        payload.result = result;
-      }
 
       try {
-        const res = await fetch(url, {
-          method,
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
-        
-        const data = await res.json();
-        if (data.id) {
-          cancelMatchEdit();
-          await loadPanelData();
+        if (id) {
+          // Edição de partida e possível reconciliação de apostas
+          const status = document.getElementById("match-status").value;
+          const result = document.getElementById("match-result").value;
+
+          const matchRef = window.db.collection("matches").doc(id);
+          const matchDoc = await matchRef.get();
+          const matchData = matchDoc.data();
+
+          if (status === "finished" && matchData.status !== "finished" && result) {
+            // Reconciliação transacional client-side de apostas!
+            await reconcileMatchBetsTransaction(id, result);
+          } else {
+            // Apenas update simples (se já finalizado ou não sendo finalizado)
+            await matchRef.update({
+              aId, bId, stage, group, date, code, status, result
+            });
+          }
         } else {
-          alert(data.error || "Erro ao salvar partida.");
+          // Criação
+          const newDoc = window.db.collection("matches").doc();
+          await newDoc.set({
+            aId, bId, stage, group, date, code,
+            status: "scheduled",
+            result: "",
+            aReady: false,
+            bReady: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
         }
+        cancelMatchEdit();
+        alert("Partida salva com sucesso!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao salvar partida:", error);
+        alert("Erro ao salvar partida: " + error.message);
       }
+    }
+
+    // Algoritmo de Reconciliação de Apostas no Cliente via Transações
+    async function reconcileMatchBetsTransaction(matchId, result) {
+      const matchRef = window.db.collection("matches").doc(matchId);
+      
+      // Buscar todos os palpites pendentes desta partida
+      const betsSnap = await window.db.collection("bets")
+        .where("matchId", "==", matchId)
+        .where("status", "==", "pending")
+        .get();
+
+      if (betsSnap.empty) {
+        // Sem palpites pendentes, apenas finaliza
+        await matchRef.update({ status: "finished", result });
+        return;
+      }
+
+      // Reunir todos os UIDs dos apostadores para ler seus saldos
+      const uids = [];
+      betsSnap.forEach(doc => {
+        const userId = doc.data().userId;
+        if (!uids.includes(userId)) uids.push(userId);
+      });
+
+      // Executar transação para garantir atomicidade total
+      await window.db.runTransaction(async (transaction) => {
+        // 1. Ler documentos de usuários para ver saldo atual
+        const userDocs = {};
+        for (const uid of uids) {
+          const uRef = window.db.collection("users").doc(uid);
+          const uDoc = await transaction.get(uRef);
+          if (uDoc.exists) userDocs[uid] = uDoc.data();
+        }
+
+        // 2. Atualizar status da partida
+        transaction.update(matchRef, { status: "finished", result });
+
+        // 3. Processar cada palpite
+        betsSnap.forEach(betDoc => {
+          const bet = betDoc.data();
+          const betId = betDoc.id;
+          const uid = bet.userId;
+          const uData = userDocs[uid];
+          if (!uData) return;
+
+          const uRef = window.db.collection("users").doc(uid);
+          const points = uData.points || 0;
+          const wins = uData.betsWon || 0;
+          const total = uData.betsTotal || 0;
+
+          if (result === "postponed") {
+            // Reembolsa 2 pontos
+            transaction.update(uRef, { points: points + 2 });
+            transaction.update(betDoc.ref, { status: "postponed", settledPayout: 2 });
+          } else {
+            const won = bet.pick === result;
+            if (won) {
+              // Adiciona ganho
+              transaction.update(uRef, {
+                points: points + bet.payoutPoints,
+                betsWon: wins + 1,
+                betsTotal: total + 1
+              });
+              transaction.update(betDoc.ref, { status: "ganhou", settledPayout: bet.payoutPoints });
+            } else {
+              // Apenas incrementa total apostado
+              transaction.update(uRef, {
+                betsTotal: total + 1
+              });
+              transaction.update(betDoc.ref, { status: "perdeu", settledPayout: 0 });
+            }
+          }
+        });
+      });
     }
 
     function loadMatchToEdit(id) {
@@ -542,7 +632,6 @@
       document.getElementById("match-group").value = m.group || "";
       document.getElementById("match-code").value = m.code || "";
       
-      // Converter data do Firestore para formato datetime-local
       if (m.date) {
         const d = new Date(m.date);
         const format2 = n => n < 10 ? `0${n}` : n;
@@ -554,14 +643,12 @@
       document.getElementById("match-status").value = m.status || "scheduled";
       document.getElementById("match-result").value = m.result || "";
 
-      // Exibe seção de resultado e status para edição
       document.getElementById("result-status-area").style.display = "grid";
       
       document.getElementById("match-form-title").textContent = "📝 Editar Partida";
       document.getElementById("btn-submit-match").textContent = "Atualizar Partida";
       document.getElementById("btn-cancel-edit").style.display = "inline-block";
 
-      // Rolar até o form
       document.getElementById("match-form").scrollIntoView({ behavior: "smooth" });
     }
 
@@ -578,18 +665,11 @@
       if (!confirm("Tem certeza que deseja excluir esta partida?")) return;
 
       try {
-        const res = await fetch(`/api/matches/${id}`, {
-          method: "DELETE",
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.success) {
-          await loadPanelData();
-        } else {
-          alert(data.error || "Erro ao excluir.");
-        }
+        await window.db.collection("matches").doc(id).delete();
+        alert("Partida excluída.");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao excluir partida:", error);
+        alert("Erro ao excluir.");
       }
     }
 
@@ -598,19 +678,55 @@
       if (!confirm("ATENÇÃO: Deseja apagar permanentemente todas as mensagens do chat da comunidade? Esta ação não pode ser desfeita.")) return;
 
       try {
-        const res = await fetch("/api/chat", {
-          method: "DELETE",
-          headers: { "Authorization": `Bearer ${token}` }
+        await window.rtdb.ref("chat").remove();
+        // Atualizar metadata de limpeza
+        await window.rtdb.ref("metadata").update({
+          lastCleanTime: firebase.database.ServerValue.TIMESTAMP
         });
-        
-        const data = await res.json();
-        if (data.success) {
-          alert("Chat limpo com sucesso!");
-        } else {
-          alert(data.error || "Erro ao limpar chat.");
-        }
+        alert("Chat limpo com sucesso!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao limpar chat:", error);
+        alert("Erro ao limpar chat.");
+      }
+    }
+
+    // Auto-clean programado (Gatilho ao acessar o painel)
+    async function autoCleanChatTrigger() {
+      try {
+        const snap = await window.rtdb.ref("metadata/lastCleanTime").get();
+        const lastClean = snap.val() || 0;
+        const now = Date.now();
+        const FIVE_HOURS = 5 * 60 * 60 * 1000;
+
+        if (now - lastClean >= FIVE_HOURS) {
+          console.log("[Auto-Clean] Iniciando varredura de chat programada...");
+          
+          // Buscar mensagens antigas (> 5 horas)
+          const messagesSnap = await window.rtdb.ref("chat").get();
+          if (!messagesSnap.exists()) return;
+
+          const cutoff = now - FIVE_HOURS;
+          const updates = {};
+          
+          messagesSnap.forEach(child => {
+            const val = child.val();
+            if (val.ts < cutoff) {
+              updates[child.key] = null; // marca para exclusão
+            }
+          });
+
+          if (Object.keys(updates).length > 0) {
+            await window.rtdb.ref("chat").update(updates);
+            console.log(`[Auto-Clean] Excluídas ${Object.keys(updates).length} mensagens expiradas.`);
+          }
+
+          // Atualizar hora da última limpeza
+          await window.rtdb.ref("metadata").update({
+            lastCleanTime: firebase.database.ServerValue.TIMESTAMP
+          });
+        }
+      } catch (e) {
+        console.error("[Auto-Clean] Falha no gatilho automático:", e);
       }
     }
   </script>

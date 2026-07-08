@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Campeões - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
   <style>
     .winners-podium {
       display: flex;
@@ -114,21 +114,35 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
-    document.addEventListener("DOMContentLoaded", loadWinnersData);
+    document.addEventListener("DOMContentLoaded", () => {
+      const interval = setInterval(() => {
+        if (window.db) {
+          clearInterval(interval);
+          loadWinnersData();
+        }
+      }, 100);
+    });
 
     async function loadWinnersData() {
       try {
-        const matchesRes = await fetch("/api/matches");
-        const allMatches = await matchesRes.json();
+        const matchesSnap = await window.db.collection("matches").get();
+        const allMatches = [];
+        matchesSnap.forEach(doc => { allMatches.push({ id: doc.id, ...doc.data() }); });
 
-        const playersRes = await fetch("/api/players");
-        const players = await playersRes.json();
+        const playersSnap = await window.db.collection("players").get();
         const playersMap = {};
-        players.forEach(p => { playersMap[p.id] = p.name; });
+        playersSnap.forEach(doc => { playersMap[doc.id] = doc.data().name; });
 
         // Verificar finalistas do torneio
         const finalMatch = allMatches.find(m => m.stage === "final" && m.status === "finished");

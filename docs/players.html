@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jogadores - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
   <style>
     .players-grid {
       display: grid;
@@ -88,25 +88,42 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
     let allPlayers = [];
     let allMatches = [];
     let activePlayerId = null;
 
-    document.addEventListener("DOMContentLoaded", loadPlayersData);
+    document.addEventListener("DOMContentLoaded", () => {
+      const interval = setInterval(() => {
+        if (window.db) {
+          clearInterval(interval);
+          loadPlayersData();
+        }
+      }, 100);
+    });
 
     async function loadPlayersData() {
       try {
-        const [playersRes, matchesRes] = await Promise.all([
-          fetch("/api/players"),
-          fetch("/api/matches")
+        const [playersSnap, matchesSnap] = await Promise.all([
+          window.db.collection("players").get(),
+          window.db.collection("matches").get()
         ]);
 
-        allPlayers = await playersRes.json();
-        allMatches = await matchesRes.json();
+        allPlayers = [];
+        playersSnap.forEach(doc => { allPlayers.push({ id: doc.id, ...doc.data() }); });
+
+        allMatches = [];
+        matchesSnap.forEach(doc => { allMatches.push({ id: doc.id, ...doc.data() }); });
 
         renderPlayersGrid("A", "group-a-players");
         renderPlayersGrid("B", "group-b-players");
@@ -136,7 +153,6 @@
     }
 
     function showPlayerDetails(playerId) {
-      // Remover classe active anterior
       if (activePlayerId) {
         document.getElementById(`p-card-${activePlayerId}`)?.classList.remove("active");
       }
@@ -251,7 +267,7 @@
               </tr>
             </thead>
             <tbody>
-              ${historyRows || '<tr><td colspan="4" style="text-align:center;" class="text-secondary">Nenhuma partida jogada.</td></tr>'}
+              ${historyRows || '<tr><td colspan="4" style="text-align:center;" class="text-secondary">Sem histórico de partidas.</td></tr>'}
             </tbody>
           </table>
         </div>

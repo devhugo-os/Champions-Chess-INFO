@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Chat - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
-  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -27,7 +26,7 @@
         
         <!-- Área de envio (Oculta se não logado) -->
         <div id="chat-auth-guard" style="padding: 16px; background-color: var(--bg-secondary); border-top: 1px solid var(--border-color); text-align: center; display: none;">
-          <p class="text-secondary">Você precisa estar logado para enviar mensagens no chat. <a href="/perfil" style="color: var(--accent-color); font-weight: 700; text-decoration: none;">Fazer login &rarr;</a></p>
+          <p class="text-secondary">Você precisa estar logado para enviar mensagens no chat. <a href="perfil.html" style="color: var(--accent-color); font-weight: 700; text-decoration: none;">Fazer login &rarr;</a></p>
         </div>
 
         <form id="chat-form" class="chat-input-area" style="display: none;">
@@ -42,11 +41,17 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
-    let socket;
     let currentUser = null;
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -68,28 +73,30 @@
         document.getElementById("chat-auth-guard").style.display = "block";
       }
 
-      // Conectar WebSocket e configurar ouvintes
-      setupSocket();
+      // Aguarda a inicialização do Firebase
+      const interval = setInterval(() => {
+        if (window.rtdb) {
+          clearInterval(interval);
+          setupChat();
+        }
+      }, 100);
 
       // Enviar mensagem
       document.getElementById("chat-form").addEventListener("submit", sendChatMessage);
     });
 
-    function setupSocket() {
-      socket = io();
-
-      socket.on("connect", () => {
-        console.log("Conectado ao servidor de chat em tempo real.");
-      });
-
+    function setupChat() {
+      const chatRef = window.rtdb.ref("chat");
+      
       // Ouvir nova mensagem
-      socket.on("chat_message_added", (msg) => {
-        appendMessage(msg);
+      chatRef.limitToLast(50).on("child_added", (snapshot) => {
+        const msg = snapshot.val();
+        appendMessage({ id: snapshot.key, ...msg });
       });
 
       // Ouvir mensagem apagada
-      socket.on("chat_message_removed", (msgId) => {
-        document.getElementById(`msg-${msgId}`)?.remove();
+      chatRef.on("child_removed", (snapshot) => {
+        document.getElementById(`msg-${snapshot.key}`)?.remove();
       });
     }
 
@@ -121,7 +128,6 @@
       `;
 
       messagesContainer.appendChild(msgEl);
-      // Rolar para o final
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
@@ -130,34 +136,21 @@
       
       const inputEl = document.getElementById("chat-input");
       const text = inputEl.value.trim();
-      if (!text) return;
-
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) {
-        alert("Sua sessão expirou. Logue novamente na página de perfil.");
-        return;
-      }
+      if (!text || !currentUser) return;
 
       inputEl.disabled = true;
 
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ text })
+        await window.rtdb.ref("chat").push({
+          uid: currentUser.uid,
+          name: currentUser.name,
+          text: text,
+          ts: firebase.database.ServerValue.TIMESTAMP
         });
-
-        const data = await res.json();
-        if (data.success) {
-          inputEl.value = "";
-        } else {
-          alert(data.error || "Erro ao enviar mensagem.");
-        }
+        inputEl.value = "";
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao enviar mensagem:", error);
+        alert("Erro ao enviar mensagem.");
       } finally {
         inputEl.disabled = false;
         inputEl.focus();
@@ -167,26 +160,11 @@
     async function deleteMessage(msgId) {
       if (!confirm("Deseja apagar essa mensagem do chat?")) return;
 
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) {
-        alert("Não autorizado.");
-        return;
-      }
-
       try {
-        const res = await fetch(`/api/chat/${msgId}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        
-        const data = await res.json();
-        if (!data.success) {
-          alert(data.error || "Erro ao apagar mensagem.");
-        }
+        await window.rtdb.ref("chat").child(msgId).remove();
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao apagar mensagem:", error);
+        alert("Erro ao apagar mensagem.");
       }
     }
 

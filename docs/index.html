@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Início - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -17,7 +17,7 @@
       <div class="card">
         <h2>🏆 Champions Chess INFO</h2>
         <p style="margin-bottom: 16px;">
-          Seja bem-vindo ao hub oficial do campeonato de xadrez do IFMA. Acompanhe os resultados em tempo real, registre suas apostas amigáveis (com CCIP) e converse com a comunidade.
+          Seja bem-vindo ao hub oficial do campeonato de xadrez. Acompanhe os resultados em tempo real, registre suas apostas amigáveis (com CCIP) e converse com a comunidade.
         </p>
         <h3 style="font-size: 16px; margin-bottom: 8px;">Estrutura do Campeonato</h3>
         <ul style="list-style-type: none; font-size: 14px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px;">
@@ -27,8 +27,8 @@
           <li>🛡️ <b>Transparência:</b> Jogos validados pela organização e promovidos via matchmaking.</li>
         </ul>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-          <a href="/regulamento" class="btn" style="text-decoration: none; color: #062010;">Ver Regulamento</a>
-          <a href="/jogadores" class="btn btn-ghost" style="text-decoration: none;">Lista de Jogadores</a>
+          <a href="regulamento.html" class="btn" style="text-decoration: none; color: #062010;">Ver Regulamento</a>
+          <a href="players.html" class="btn btn-ghost" style="text-decoration: none;">Lista de Jogadores</a>
         </div>
       </div>
 
@@ -59,10 +59,10 @@
     <div class="card" style="margin-top: 24px;">
       <h2>📢 Últimos Comunicados</h2>
       <div id="home-posts-list" style="display: flex; flex-direction: column; gap: 16px;">
-        <p class="text-secondary">Nenhum comunicado recente.</p>
+        <p class="text-secondary">Carregando comunicados...</p>
       </div>
       <div style="margin-top: 16px; text-align: right;">
-        <a href="/comunicados" style="color: var(--accent-color); font-weight: 700; text-decoration: none; font-size: 14px;">Ver todos os comunicados &rarr;</a>
+        <a href="comunicados.html" style="color: var(--accent-color); font-weight: 700; text-decoration: none; font-size: 14px;">Ver todos os comunicados &rarr;</a>
       </div>
     </div>
   </main>
@@ -72,113 +72,109 @@
     <span style="font-size: 12px; color: var(--text-secondary);">Autor: <b>Hugo Oliveira Silva</b></span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
   
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      loadHomeData();
+      // O firebase-config.js expõe 'window.db' globalmente.
+      // Aguarda a inicialização do Firestore para carregar os dados.
+      const interval = setInterval(() => {
+        if (window.db) {
+          clearInterval(interval);
+          loadHomeData();
+        }
+      }, 100);
     });
 
     async function loadHomeData() {
       try {
-        // Carregar próximas partidas
-        const matchesRes = await fetch("/api/matches");
-        const allMatches = await matchesRes.json();
-        
-        // Carregar jogadores para mapear nomes
-        const playersRes = await fetch("/api/players");
-        const players = await playersRes.json();
+        // 1. Carregar jogadores para mapeamento de nomes
+        const playersSnap = await window.db.collection("players").get();
         const playersMap = {};
-        players.forEach(p => { playersMap[p.id] = p.name; });
+        playersSnap.forEach(doc => {
+          const data = doc.data();
+          playersMap[doc.id] = data.name;
+        });
 
-        // Filtrar partidas pendentes/agendadas
-        const upcomingMatches = allMatches
-          .filter(m => m.status !== "finished")
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .slice(0, 5);
+        // 2. Carregar e ouvir partidas em tempo real (limite de 5 próximas partidas)
+        window.db.collection("matches")
+          .where("status", "!=", "finished")
+          .onSnapshot(snapshot => {
+            const matches = [];
+            snapshot.forEach(doc => {
+              matches.push({ id: doc.id, ...doc.data() });
+            });
 
-        const matchesBody = document.getElementById("home-matches-body");
-        if (upcomingMatches.length === 0) {
-          matchesBody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Nenhuma partida agendada.</td></tr>`;
-        } else {
-          matchesBody.innerHTML = upcomingMatches.map(m => {
-            const playerA = playersMap[m.aId] || "Desconhecido";
-            const playerB = playersMap[m.bId] || "Desconhecido";
-            const dateStr = m.date ? new Date(m.date).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "A definir";
-            const stageStr = m.stage === "groups" ? `Grupo ${m.group || ""}` : m.stage.toUpperCase();
-            
-            let statusBadge = `<span class="badge badge-info">Agendado</span>`;
-            if (m.status === "live") {
-              statusBadge = `<span class="badge badge-success" style="animation: pulse 1.5s infinite;">AO VIVO</span>`;
-            } else if (m.result === "postponed") {
-              statusBadge = `<span class="badge badge-warning">Adiado</span>`;
+            // Ordenar por data
+            matches.sort((a, b) => new Date(a.date) - new Date(b.date));
+            const upcoming = matches.slice(0, 5);
+
+            const matchesBody = document.getElementById("home-matches-body");
+            if (upcoming.length === 0) {
+              matchesBody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Nenhuma partida agendada.</td></tr>`;
+              return;
             }
 
-            return `
-              <tr>
-                <td><b>${dateStr}</b></td>
-                <td>${playerA} × ${playerB}</td>
-                <td><span class="badge badge-info" style="background:rgba(56,139,253,0.08);">${stageStr}</span></td>
-                <td>${statusBadge}</td>
-              </tr>
-            `;
-          }).join("");
-        }
+            matchesBody.innerHTML = upcoming.map(m => {
+              const playerA = playersMap[m.aId] || "Desconhecido";
+              const playerB = playersMap[m.bId] || "Desconhecido";
+              const dateStr = m.date ? new Date(m.date).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "A definir";
+              const stageStr = m.stage === "groups" ? `Grupo ${m.group || ""}` : m.stage.toUpperCase();
+              
+              let statusBadge = `<span class="badge badge-info">Agendado</span>`;
+              if (m.status === "live") {
+                statusBadge = `<span class="badge badge-danger" style="animation: pulse 1.5s infinite;">AO VIVO</span>`;
+              }
 
-        // Carregar comunicados
-        const postsRes = await fetch("/api/matches"); // wait, let's fetch /api/posts? No, wait!
-        // Ah, where are the announcements? We created router.get for `/matches` and `/players`, but did we add a route for `/posts`?
-        // Wait, let's check `api.js` to see if we missed adding a GET route for `/posts`.
-        // Yes! In `api.js` we have:
-        // router.post("/chat", requireAuth, chatController.sendMessage);
-        // Did we map announcements/posts?
-        // In `api.js` we have:
-        // authController, playerController, matchController, betController, chatController.
-        // Wait, did we map announcements in `api.js`?
-        // Ah, let's double check `api.js`. In the old `index.html` and `app.js`, they used a `posts` collection in Firestore.
-        // Let's check `api.js` content. We have JOGADORES, PARTIDAS, APOSTAS, CHAT.
-        // Wait, we didn't add the routes for Announcements (comunicados / posts)!
-        // Let's check `app.js` to see how it loaded announcements:
-        // `query(collection(db,"posts"), orderBy("createdAt","desc"))`
-        // Ah! In our backend config, we should expose `/api/posts` for announcements!
-        // Let's create a postController or define routes in `src/routes/api.js` directly to read and write announcements from/to Firestore `posts` collection!
-        // That is extremely easy. We can do it directly in the routing file `src/routes/api.js` or in `src/controllers/adminController.js`.
-        // Let's check: yes, we need to add GET `/api/posts` (public) and POST `/api/posts` (requires requireAdmin) and DELETE `/api/posts/:id` (requires requireAdmin).
-        // Let's update `src/routes/api.js` to support this! I will do this in a moment. Let's write the javascript in `index.html` to fetch `/api/posts`.
+              return `
+                <tr>
+                  <td><b>${dateStr}</b></td>
+                  <td>${playerA} × ${playerB}</td>
+                  <td><span class="badge badge-info" style="background:rgba(56,139,253,0.08);">${stageStr}</span></td>
+                  <td>${statusBadge}</td>
+                </tr>
+              `;
+            }).join("");
+          });
+
+        // 3. Carregar últimos comunicados (posts)
+        window.db.collection("posts")
+          .orderBy("createdAt", "desc")
+          .limit(3)
+          .onSnapshot(snapshot => {
+            const listEl = document.getElementById("home-posts-list");
+            if (snapshot.empty) {
+              listEl.innerHTML = `<p class="text-secondary">Nenhum comunicado recente.</p>`;
+              return;
+            }
+
+            const postsHtml = [];
+            snapshot.forEach(doc => {
+              const p = doc.data();
+              const dateStr = p.createdAt ? new Date(p.createdAt.seconds * 1000 || p.createdAt).toLocaleString("pt-BR") : "Agora";
+              postsHtml.push(`
+                <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+                  <h3 style="font-size: 16px; margin-bottom: 4px;">${p.title}</h3>
+                  <p style="font-size: 12px; margin-bottom: 8px;">Publicado em ${dateStr} por <b>${p.authorName || 'Organizador'}</b></p>
+                  <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line;">${p.body}</div>
+                </div>
+              `);
+            });
+            listEl.innerHTML = postsHtml.join("");
+          });
+
       } catch (error) {
         console.error("Erro ao carregar dados da Home:", error);
       }
     }
-
-    async function loadHomePosts() {
-      try {
-        const res = await fetch("/api/posts");
-        const posts = await res.json();
-        const listEl = document.getElementById("home-posts-list");
-        
-        if (posts.length === 0) {
-          listEl.innerHTML = `<p class="text-secondary">Nenhum comunicado recente.</p>`;
-          return;
-        }
-
-        listEl.innerHTML = posts.slice(0, 3).map(p => {
-          const dateStr = p.createdAt ? new Date(p.createdAt._seconds * 1000 || p.createdAt).toLocaleString("pt-BR") : "Agora";
-          return `
-            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
-              <h3 style="font-size: 16px; margin-bottom: 4px;">${p.title}</h3>
-              <p style="font-size: 12px; margin-bottom: 8px;">Publicado em ${dateStr} por <b>${p.authorName || 'Organizador'}</b></p>
-              <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line;">${p.body}</div>
-            </div>
-          `;
-        }).join("");
-      } catch (error) {
-        console.error("Erro ao carregar comunicados:", error);
-      }
-    }
-
-    // Carregar posts separados
-    document.addEventListener("DOMContentLoaded", loadHomePosts);
   </script>
 
   <style>

@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Classificação - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -65,21 +65,41 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
-    document.addEventListener("DOMContentLoaded", loadStandings);
+    document.addEventListener("DOMContentLoaded", () => {
+      const interval = setInterval(() => {
+        if (window.db) {
+          clearInterval(interval);
+          loadStandings();
+        }
+      }, 100);
+    });
 
     async function loadStandings() {
       try {
-        const [playersRes, matchesRes] = await Promise.all([
-          fetch("/api/players"),
-          fetch("/api/matches")
-        ]);
+        // 1. Carregar jogadores
+        const playersSnap = await window.db.collection("players").get();
+        const players = [];
+        playersSnap.forEach(doc => {
+          players.push({ id: doc.id, ...doc.data() });
+        });
 
-        const players = await playersRes.json();
-        const allMatches = await matchesRes.json();
+        // 2. Carregar partidas
+        const matchesSnap = await window.db.collection("matches").get();
+        const allMatches = [];
+        matchesSnap.forEach(doc => {
+          allMatches.push({ id: doc.id, ...doc.data() });
+        });
 
         // Filtrar apenas partidas de grupos finalizadas
         const groupMatches = allMatches.filter(m => m.stage === "groups" && m.status === "finished");

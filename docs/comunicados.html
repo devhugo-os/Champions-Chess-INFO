@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Comunicados - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -41,13 +41,20 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
     let currentUser = null;
 
-    document.addEventListener("DOMContentLoaded", async () => {
+    document.addEventListener("DOMContentLoaded", () => {
       // Ler usuário do localStorage
       try {
         const userStr = localStorage.getItem("user");
@@ -59,46 +66,56 @@
         document.getElementById("admin-post-card").style.display = "block";
       }
 
-      // Carregar comunicados
-      loadPosts();
+      // Aguarda a inicialização do Firestore
+      const interval = setInterval(() => {
+        if (window.db) {
+          clearInterval(interval);
+          loadPosts();
+        }
+      }, 100);
 
       // Envio de formulário
       document.getElementById("new-post-form").addEventListener("submit", createPost);
     });
 
-    async function loadPosts() {
+    function loadPosts() {
       const timeline = document.getElementById("posts-timeline");
-      
-      try {
-        const res = await fetch("/api/posts");
-        const list = await res.json();
 
-        if (list.length === 0) {
-          timeline.innerHTML = `<p class="text-secondary" style="text-align: center; padding: 24px;">Nenhum comunicado oficial publicado.</p>`;
-          return;
-        }
+      window.db.collection("posts")
+        .orderBy("createdAt", "desc")
+        .onSnapshot(snapshot => {
+          if (snapshot.empty) {
+            timeline.innerHTML = `<p class="text-secondary" style="text-align: center; padding: 24px;">Nenhum comunicado oficial publicado.</p>`;
+            return;
+          }
 
-        timeline.innerHTML = list.map(p => {
-          const dateStr = p.createdAt ? new Date(p.createdAt).toLocaleString("pt-BR") : "Agora";
-          const deleteBtn = currentUser && (currentUser.role === "admin" || currentUser.isAdmin)
-            ? `<button class="btn btn-danger" onclick="deletePost('${p.id}')" style="padding: 6px 12px; font-size:11px; margin-top: 12px;">Excluir</button>`
-            : "";
+          const posts = [];
+          snapshot.forEach(doc => {
+            posts.push({ id: doc.id, ...doc.data() });
+          });
 
-          return `
-            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; position:relative;">
-              <h3 style="font-size: 18px; margin-bottom: 6px;">${p.title}</h3>
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px; display:flex; gap:12px; flex-wrap:wrap;">
-                <span>🕒 Publicado em: <b>${dateStr}</b></span>
-                <span>👤 Autor: <b>${p.authorName || 'Organização'}</b></span>
+          timeline.innerHTML = posts.map(p => {
+            const dateStr = p.createdAt ? new Date(p.createdAt.seconds * 1000 || p.createdAt).toLocaleString("pt-BR") : "Agora";
+            const deleteBtn = currentUser && (currentUser.role === "admin" || currentUser.isAdmin)
+              ? `<button class="btn btn-danger" onclick="deletePost('${p.id}')" style="padding: 6px 12px; font-size:11px; margin-top: 12px;">Excluir</button>`
+              : "";
+
+            return `
+              <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px; position:relative;">
+                <h3 style="font-size: 18px; margin-bottom: 6px;">${p.title}</h3>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px; display:flex; gap:12px; flex-wrap:wrap;">
+                  <span>🕒 Publicado em: <b>${dateStr}</b></span>
+                  <span>👤 Autor: <b>${p.authorName || 'Organização'}</b></span>
+                </div>
+                <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line; line-height: 1.6;">${p.body}</div>
+                ${deleteBtn}
               </div>
-              <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line; line-height: 1.6;">${p.body}</div>
-              ${deleteBtn}
-            </div>
-          `;
-        }).join("");
-      } catch (error) {
-        timeline.innerHTML = `<p class="text-secondary" style="text-align: center;">Erro ao carregar comunicados.</p>`;
-      }
+            `;
+          }).join("");
+        }, error => {
+          console.error("Erro ao escutar comunicados:", error);
+          timeline.innerHTML = `<p class="text-secondary" style="text-align: center;">Erro ao carregar comunicados.</p>`;
+        });
     }
 
     async function createPost(e) {
@@ -107,59 +124,34 @@
       const title = document.getElementById("post-title").value.trim();
       const body = document.getElementById("post-body").value.trim();
 
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) {
-        alert("Sessão expirada. Refaça o login.");
-        return;
-      }
+      if (!currentUser) return;
 
       try {
-        const res = await fetch("/api/posts", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ title, body })
+        await window.db.collection("posts").add({
+          title,
+          body,
+          authorName: currentUser.name || "Organização",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
-        
-        const data = await res.json();
-        if (data.id) {
-          document.getElementById("post-title").value = "";
-          document.getElementById("post-body").value = "";
-          loadPosts(); // Recarregar timeline
-        } else {
-          alert(data.error || "Erro ao publicar comunicado.");
-        }
+
+        document.getElementById("post-title").value = "";
+        document.getElementById("post-body").value = "";
+        alert("Comunicado publicado com sucesso!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao criar comunicado:", error);
+        alert("Erro ao publicar comunicado. Verifique suas permissões.");
       }
     }
 
     async function deletePost(postId) {
       if (!confirm("Tem certeza que deseja excluir este comunicado?")) return;
 
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) {
-        alert("Sessão expirada.");
-        return;
-      }
-
       try {
-        const res = await fetch(`/api/posts/${postId}`, {
-          method: "DELETE",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
-        if (data.success) {
-          loadPosts();
-        } else {
-          alert(data.error || "Erro ao excluir comunicado.");
-        }
+        await window.db.collection("posts").doc(postId).delete();
+        alert("Comunicado excluído!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao deletar comunicado:", error);
+        alert("Erro ao excluir comunicado.");
       }
     }
   </script>

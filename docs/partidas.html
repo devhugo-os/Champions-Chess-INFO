@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Partidas - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
-  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -43,76 +42,89 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
-    let socket;
     let currentUser = null;
     let playersMap = {};
+    let allMatches = [];
 
-    document.addEventListener("DOMContentLoaded", async () => {
+    document.addEventListener("DOMContentLoaded", () => {
       // Ler usuário do localStorage
       try {
         const userStr = localStorage.getItem("user");
         if (userStr) currentUser = JSON.parse(userStr);
       } catch (e) {}
 
-      // Carregar jogadores
-      await loadPlayersMap();
-      
-      // Carregar partidas inicialmente
-      await loadMatches();
-
-      // Configurar Sockets para atualizações em tempo real
-      setupSocket();
+      // Aguarda a inicialização do Firestore
+      const interval = setInterval(() => {
+        if (window.db) {
+          clearInterval(interval);
+          initPartidas();
+        }
+      }, 100);
 
       // Listener de Filtro
-      document.getElementById("filter-stage").addEventListener("change", loadMatches);
+      document.getElementById("filter-stage").addEventListener("change", renderMatches);
     });
 
-    async function loadPlayersMap() {
+    async function initPartidas() {
       try {
-        const res = await fetch("/api/players");
-        const list = await res.json();
-        list.forEach(p => {
-          playersMap[p.id] = p.name;
+        // 1. Carregar jogadores
+        const snap = await window.db.collection("players").get();
+        snap.forEach(doc => {
+          playersMap[doc.id] = doc.data().name;
+        });
+
+        // 2. Ouvir partidas em tempo real
+        window.db.collection("matches").onSnapshot(snapshot => {
+          allMatches = [];
+          snapshot.forEach(doc => {
+            allMatches.push({ id: doc.id, ...doc.data() });
+          });
+          renderMatches();
         });
       } catch (error) {
-        console.error("Erro ao mapear jogadores:", error);
+        console.error("Erro ao inicializar partidas:", error);
       }
     }
 
-    async function loadMatches() {
+    function renderMatches() {
       const filterVal = document.getElementById("filter-stage").value;
       const container = document.getElementById("matches-container");
       
-      try {
-        const res = await fetch("/api/matches");
-        let list = await res.json();
+      let list = [...allMatches];
 
-        // Aplicar filtros
-        if (filterVal === "groups") {
-          list = list.filter(m => m.stage === "groups");
-        } else if (filterVal === "groupA") {
-          list = list.filter(m => m.stage === "groups" && m.group === "A");
-        } else if (filterVal === "groupB") {
-          list = list.filter(m => m.stage === "groups" && m.group === "B");
-        } else if (filterVal === "semifinal") {
-          list = list.filter(m => m.stage === "semifinal");
-        } else if (filterVal === "final") {
-          list = list.filter(m => m.stage === "final" || m.stage === "third");
-        }
-
-        if (list.length === 0) {
-          container.innerHTML = `<p class="text-secondary" style="text-align: center; padding: 24px;">Nenhuma partida encontrada para esta etapa.</p>`;
-          return;
-        }
-
-        container.innerHTML = list.map(m => renderMatchCard(m)).join("");
-      } catch (error) {
-        container.innerHTML = `<p class="text-secondary" style="text-align: center;">Erro ao carregar partidas.</p>`;
+      // Aplicar filtros
+      if (filterVal === "groups") {
+        list = list.filter(m => m.stage === "groups");
+      } else if (filterVal === "groupA") {
+        list = list.filter(m => m.stage === "groups" && m.group === "A");
+      } else if (filterVal === "groupB") {
+        list = list.filter(m => m.stage === "groups" && m.group === "B");
+      } else if (filterVal === "semifinal") {
+        list = list.filter(m => m.stage === "semifinal");
+      } else if (filterVal === "final") {
+        list = list.filter(m => m.stage === "final" || m.stage === "third");
       }
+
+      // Ordenar por data
+      list.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (list.length === 0) {
+        container.innerHTML = `<p class="text-secondary" style="text-align: center; padding: 24px;">Nenhuma partida encontrada para esta etapa.</p>`;
+        return;
+      }
+
+      container.innerHTML = list.map(m => renderMatchCard(m)).join("");
     }
 
     function renderMatchCard(m) {
@@ -199,46 +211,39 @@
     }
 
     async function signalReady(matchId) {
-      // Ler token
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) {
-        alert("Sua sessão expirou. Por favor, logue novamente na aba Perfil.");
-        window.location.href = "/perfil";
-        return;
-      }
+      if (!currentUser) return;
+
+      const matchRef = window.db.collection("matches").doc(matchId);
 
       try {
-        const res = await fetch(`/api/matches/${matchId}/ready`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
+        await window.db.runTransaction(async (transaction) => {
+          const matchDoc = await transaction.get(matchRef);
+          if (!matchDoc.exists) throw new Error("Confronto não existe.");
+
+          const data = matchDoc.data();
+          const isPlayerA = data.aId === currentUser.uid;
+          const isPlayerB = data.bId === currentUser.uid;
+
+          const updates = {};
+          if (isPlayerA) updates.aReady = true;
+          if (isPlayerB) updates.bReady = true;
+
+          // Se após essa atualização ambos estiverem prontos, colocar AO VIVO
+          const aReady = isPlayerA ? true : !!data.aReady;
+          const bReady = isPlayerB ? true : !!data.bReady;
+
+          if (aReady && bReady) {
+            updates.status = "live";
           }
+
+          transaction.update(matchRef, updates);
         });
-        
-        const data = await res.json();
-        if (data.success) {
-          loadMatches(); // Recarrega localmente
-        } else {
-          alert(data.error || "Não foi possível sinalizar estado pronto.");
-        }
+
+        alert("Seu estado de prontidão foi atualizado com sucesso!");
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao atualizar prontidão:", error);
+        alert("Erro ao enviar estado de pronto. Tente novamente.");
       }
-    }
-
-    function setupSocket() {
-      socket = io();
-      
-      socket.on("connect", () => {
-        console.log("Conectado ao canal em tempo real para matchmaking.");
-      });
-
-      socket.on("match_update", (match) => {
-        console.log("Partida atualizada em tempo real:", match);
-        // Atualizar interface
-        loadMatches();
-      });
     }
   </script>
 </body>

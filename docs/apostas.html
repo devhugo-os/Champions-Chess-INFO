@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Apostas - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
-  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
@@ -142,18 +141,27 @@
     <span>© Champions Chess INFO</span>
   </footer>
 
-  <script src="/js/navigation.js"></script>
-  <script src="/js/security.js"></script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
 
   <script>
-    let socket;
     let currentUser = null;
     let playersMap = {};
     let matchesList = [];
+    let myBetsList = [];
+    let usersList = [];
     let activeUndo = null;
     let undoTimer = null;
+    let oddsCalculated = null;
 
-    document.addEventListener("DOMContentLoaded", async () => {
+    document.addEventListener("DOMContentLoaded", () => {
       // Ler usuário do localStorage
       try {
         const userStr = localStorage.getItem("user");
@@ -162,15 +170,17 @@
 
       if (!currentUser) {
         alert("Você precisa fazer login para acessar a área de palpites.");
-        window.location.href = "/perfil";
+        window.location.href = "login.html";
         return;
       }
 
-      // Inicializar
-      await loadInitialData();
-
-      // Socket.io
-      setupSocket();
+      // Aguarda a inicialização do Firebase
+      const interval = setInterval(() => {
+        if (window.db && window.rtdb) {
+          clearInterval(interval);
+          initApostas();
+        }
+      }, 100);
 
       // Listeners do form
       document.getElementById("bet-match").addEventListener("change", onMatchSelect);
@@ -180,37 +190,50 @@
       document.getElementById("btn-undo-bet").addEventListener("click", performUndo);
     });
 
-    async function loadInitialData() {
+    async function initApostas() {
       try {
-        // Carregar jogadores
-        const playersRes = await fetch("/api/players");
-        const listPlayers = await playersRes.json();
-        listPlayers.forEach(p => { playersMap[p.id] = p.name; });
+        // 1. Carregar jogadores
+        const playersSnap = await window.db.collection("players").get();
+        playersSnap.forEach(doc => { playersMap[doc.id] = doc.data().name; });
 
-        // Carregar saldo e perfil
-        const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-        const profileRes = await fetch("/api/auth/profile", {
-          headers: { "Authorization": `Bearer ${token}` }
+        // 2. Ouvir carteira em tempo real
+        window.db.collection("users").doc(currentUser.uid).onSnapshot(doc => {
+          if (doc.exists) {
+            document.getElementById("wallet-balance").textContent = doc.data().points || 0;
+          }
         });
-        const profileData = await profileRes.json();
-        
-        document.getElementById("wallet-balance").textContent = profileData.wallet;
 
-        // Carregar partidas
-        const matchesRes = await fetch("/api/matches");
-        matchesList = await matchesRes.json();
+        // 3. Ouvir partidas em tempo real
+        window.db.collection("matches").onSnapshot(snapshot => {
+          matchesList = [];
+          snapshot.forEach(doc => { matchesList.push({ id: doc.id, ...doc.data() }); });
+          populateMatchSelect();
+        });
 
-        // Carregar minhas apostas
-        await loadMyBets();
+        // 4. Ouvir minhas apostas em tempo real
+        window.db.collection("bets")
+          .where("userId", "==", currentUser.uid)
+          .onSnapshot(snapshot => {
+            myBetsList = [];
+            snapshot.forEach(doc => { myBetsList.push({ id: doc.id, ...doc.data() }); });
+            renderMyBets();
+            populateMatchSelect();
+          });
 
-        // Carregar rankings
-        await loadRankings();
+        // 5. Ouvir rankings em tempo real (mudanças na coleção users)
+        window.db.collection("users").onSnapshot(snapshot => {
+          usersList = [];
+          snapshot.forEach(doc => { usersList.push({ id: doc.id, ...doc.data() }); });
+          renderRankings();
+        });
 
-        // Preencher select de partidas (apenas partidas futuras e não apostadas)
-        populateMatchSelect();
+        // 6. Ouvir feed de apostas em tempo real do Realtime Database
+        window.rtdb.ref("bet_feed").limitToLast(10).on("child_added", (snapshot) => {
+          addBetToFeed({ id: snapshot.key, ...snapshot.val() });
+        });
 
       } catch (error) {
-        console.error("Erro no carregamento inicial das apostas:", error);
+        console.error("Erro ao inicializar apostas:", error);
       }
     }
 
@@ -219,11 +242,8 @@
       const alreadyBetMatchIds = new Set(myBetsList.map(b => b.matchId));
 
       const availableMatches = matchesList.filter(m => {
-        // Sem resultado definido
-        if (m.result || m.status === "finished") return false;
-        // Se já apostou nessa partida
+        if (m.result || m.status === "finished" || m.status === "live") return false;
         if (alreadyBetMatchIds.has(m.id)) return false;
-        // Data futura
         const matchDate = m.date ? new Date(m.date) : null;
         return !matchDate || matchDate.getTime() > Date.now();
       });
@@ -243,56 +263,42 @@
       }).join("");
     }
 
-    let myBetsList = [];
-    async function loadMyBets() {
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+    function renderMyBets() {
       const tbody = document.getElementById("my-bets-body");
-      
-      try {
-        const res = await fetch("/api/bets/my", {
-          headers: { "Authorization": `Bearer ${token}` }
-        });
-        myBetsList = await res.json();
+      if (myBetsList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;" class="text-secondary">Você ainda não registrou palpites.</td></tr>`;
+        return;
+      }
 
-        if (myBetsList.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;" class="text-secondary">Você ainda não registrou palpites.</td></tr>`;
-          return;
+      const matchesMap = {};
+      matchesList.forEach(m => { matchesMap[m.id] = m; });
+
+      tbody.innerHTML = myBetsList.map(b => {
+        const m = matchesMap[b.matchId];
+        const name = m ? `${playersMap[m.aId]} × ${playersMap[m.bId]}` : "Partida Finalizada";
+        const stage = m ? (m.stage === "groups" ? `Grupo ${m.group}` : m.stage.toUpperCase()) : "—";
+        const pickLabel = b.pick === "A" ? "Vitória A" : (b.pick === "B" ? "Vitória B" : "Empate");
+        
+        let statusBadge = `<span class="badge badge-info">Pendente</span>`;
+        if (b.status === "ganhou") {
+          statusBadge = `<span class="badge badge-success">Ganhou +${b.settledPayout || b.payoutPoints} CCIP</span>`;
+        } else if (b.status === "perdeu") {
+          statusBadge = `<span class="badge badge-danger">Perdeu</span>`;
+        } else if (b.status === "postponed") {
+          statusBadge = `<span class="badge badge-warning">Adiada (Reembolsada)</span>`;
         }
 
-        const matchesMap = {};
-        matchesList.forEach(m => { matchesMap[m.id] = m; });
-
-        tbody.innerHTML = myBetsList.map(b => {
-          const m = matchesMap[b.matchId];
-          const name = m ? `${playersMap[m.aId]} × ${playersMap[m.bId]}` : "Partida Excluída";
-          const stage = m ? (m.stage === "groups" ? `Grupo ${m.group}` : m.stage.toUpperCase()) : "—";
-          const pickLabel = b.pick === "A" ? "Vitória A" : (b.pick === "B" ? "Vitória B" : "Empate");
-          
-          let statusBadge = `<span class="badge badge-info">Pendente</span>`;
-          if (b.status === "ganhou") {
-            statusBadge = `<span class="badge badge-success">Ganhou +${b.settledPayout || b.payoutPoints} CCIP</span>`;
-          } else if (b.status === "perdeu") {
-            statusBadge = `<span class="badge badge-danger">Perdeu</span>`;
-          } else if (b.status === "postponed") {
-            statusBadge = `<span class="badge badge-warning">Adiada (Reembolsada)</span>`;
-          }
-
-          return `
-            <tr>
-              <td><b>${name}</b></td>
-              <td><span class="badge" style="background:rgba(56,139,253,0.08); color:#58a6ff;">${stage}</span></td>
-              <td>${pickLabel}</td>
-              <td style="color:var(--accent-color); font-weight:700;">${b.payoutPoints} CCIP</td>
-              <td>${statusBadge}</td>
-            </tr>
-          `;
-        }).join("");
-      } catch (error) {
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">Erro ao carregar apostas.</td></tr>`;
-      }
+        return `
+          <tr>
+            <td><b>${name}</b></td>
+            <td><span class="badge" style="background:rgba(56,139,253,0.08); color:#58a6ff;">${stage}</span></td>
+            <td>${pickLabel}</td>
+            <td style="color:var(--accent-color); font-weight:700;">${b.payoutPoints} CCIP</td>
+            <td>${statusBadge}</td>
+          </tr>
+        `;
+      }).join("");
     }
-
-    let oddsCalculated = null;
 
     function onMatchSelect() {
       const matchId = document.getElementById("bet-match").value;
@@ -310,7 +316,6 @@
       const match = matchesList.find(m => m.id === matchId);
       if (!match) return;
 
-      // Calcular probabilidade baseada no histórico dos dois enxadristas
       const statsA = getPlayerGroupStats(match.aId);
       const statsB = getPlayerGroupStats(match.bId);
 
@@ -335,7 +340,6 @@
 
       oddsCalculated = { A, E, D };
 
-      // Renderizar barra
       document.getElementById("estimation-odds-bars").innerHTML = `
         <div class="win-a" style="width:${A}%;" title="Vitória Jogador A">${A}%</div>
         <div class="draw" style="width:${E}%;" title="Empate">${E}%</div>
@@ -348,10 +352,10 @@
     }
 
     function getPlayerGroupStats(playerId) {
-      const finishedGroupsMatches = matchesList.filter(m => m.stage === "groups" && m.status === "finished" && (m.aId === playerId || m.bId === playerId));
+      const finishedMatches = matchesList.filter(m => m.stage === "groups" && m.status === "finished" && (m.aId === playerId || m.bId === playerId));
       let wins = 0, draws = 0, losses = 0, played = 0;
       
-      for (const m of finishedGroupsMatches) {
+      for (const m of finishedMatches) {
         played++;
         if (m.result === "draw") draws++;
         else if (m.result === "A") {
@@ -387,47 +391,76 @@
 
     async function submitBet(e) {
       e.preventDefault();
-      
+      if (!currentUser) return;
+
       const matchId = document.getElementById("bet-match").value;
       const pick = document.getElementById("bet-pick").value;
-      
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) return;
+      const match = matchesList.find(m => m.id === matchId);
+      if (!match) return;
 
       const submitBtn = document.getElementById("btn-submit-bet");
       submitBtn.disabled = true;
 
+      // Calcular payout
+      const probPct = pick === "A" ? oddsCalculated.A : (pick === "B" ? oddsCalculated.D : oddsCalculated.E);
+      let pr = probPct / 100;
+      if (pr <= 0) pr = 0.01;
+      const dec = Math.max(1.5, Math.min(5.0, 0.9 * (1 / pr)));
+      const payoutPoints = Math.max(2, Math.round(2 * dec));
+
+      const userRef = window.db.collection("users").doc(currentUser.uid);
+      const betRef = window.db.collection("bets").doc();
+
       try {
-        const res = await fetch("/api/bets", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ matchId, pick })
+        await window.db.runTransaction(async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists) throw new Error("Usuário não existe.");
+          
+          const currentPoints = userDoc.data().points || 0;
+          if (currentPoints < 2) {
+            throw new Error("Saldo insuficiente. Cada palpite custa 2 CCIP.");
+          }
+
+          // Deduzir pontos
+          transaction.update(userRef, { points: currentPoints - 2 });
+
+          // Gravar palpite
+          transaction.set(betRef, {
+            matchId,
+            pick,
+            payoutPoints,
+            status: "pending",
+            userId: currentUser.uid,
+            username: currentUser.name,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
         });
 
-        const data = await res.json();
-        if (data.success) {
-          // Ativa o banner de desfazer (5 segundos)
-          triggerUndoBanner(data.betId, data.refund);
-          
-          // Reset form e recarrega carteira / apostas
-          document.getElementById("bet-form").reset();
-          onMatchSelect();
-          await loadInitialData();
-        } else {
-          alert(data.error || "Erro ao apostar.");
-        }
+        // Registrar no feed RTDB para tempo real
+        const feedRef = window.rtdb.ref("bet_feed").push();
+        await feedRef.set({
+          userId: currentUser.name,
+          aName: playersMap[match.aId] || "A",
+          bName: playersMap[match.bId] || "B",
+          pick,
+          ts: firebase.database.ServerValue.TIMESTAMP,
+          betId: betRef.id,
+          feedId: feedRef.key
+        });
+
+        triggerUndoBanner(betRef.id, feedRef.key);
+        document.getElementById("bet-form").reset();
+        onMatchSelect();
       } catch (error) {
-        alert("Erro de conexão.");
+        console.error("Erro ao registrar aposta:", error);
+        alert(error.message || "Erro ao registrar palpite.");
       } finally {
         submitBtn.disabled = false;
       }
     }
 
-    function triggerUndoBanner(betId, refund) {
-      activeUndo = { betId, refund };
+    function triggerUndoBanner(betId, feedKey) {
+      activeUndo = { betId, feedKey };
       let countdown = 5;
       
       const banner = document.getElementById("undo-banner");
@@ -438,7 +471,7 @@
 
       if (undoTimer) clearInterval(undoTimer);
       
-      undoTimer = setInterval(async () => {
+      undoTimer = setInterval(() => {
         countdown--;
         countEl.textContent = countdown;
         if (countdown <= 0) {
@@ -450,45 +483,38 @@
     }
 
     async function performUndo() {
-      if (!activeUndo) return;
-      
-      const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
-      if (!token) return;
+      if (!activeUndo || !currentUser) return;
 
       clearInterval(undoTimer);
       document.getElementById("undo-banner").style.display = "none";
 
-      try {
-        const res = await fetch("/api/bets/undo", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({ betId: activeUndo.betId })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          alert("Aposta desfeita e saldo reembolsado com sucesso!");
-          activeUndo = null;
-          await loadInitialData();
-        } else {
-          alert(data.error || "Não foi possível desfazer a aposta.");
-        }
-      } catch (error) {
-        alert("Erro de conexão ao desfazer.");
-      }
-    }
+      const userRef = window.db.collection("users").doc(currentUser.uid);
+      const betRef = window.db.collection("bets").doc(activeUndo.betId);
+      const feedKey = activeUndo.feedKey;
 
-    let globalRankings = {};
-    async function loadRankings() {
       try {
-        const res = await fetch("/api/rankings");
-        globalRankings = await res.json();
-        renderRankings();
+        await window.db.runTransaction(async (transaction) => {
+          const betDoc = await transaction.get(betRef);
+          if (!betDoc.exists) throw new Error("Aposta não existe.");
+          if (betDoc.data().status !== "pending") throw new Error("Aposta já foi processada.");
+
+          const userDoc = await transaction.get(userRef);
+          const currentPoints = userDoc.data().points || 0;
+
+          // Devolver 2 pontos
+          transaction.update(userRef, { points: currentPoints + 2 });
+          // Deletar aposta
+          transaction.delete(betRef);
+        });
+
+        // Remover do RTDB feed
+        await window.rtdb.ref("bet_feed").child(feedKey).remove();
+
+        alert("Aposta desfeita e saldo reembolsado!");
+        activeUndo = null;
       } catch (error) {
-        console.error("Erro ao carregar rankings:", error);
+        console.error("Erro ao desfazer aposta:", error);
+        alert("Erro ao desfazer aposta.");
       }
     }
 
@@ -496,88 +522,69 @@
       const type = document.getElementById("rank-type-filter").value;
       const headers = document.getElementById("rank-table-headers");
       const tbody = document.getElementById("rank-table-body");
-      
-      const profiles = globalRankings.profilesMap || {};
-      const wallets = globalRankings.walletsMap || {};
 
-      const getUsername = (uid) => {
-        const p = profiles[uid] || {};
-        const w = wallets[uid] || {};
-        return p.displayName || w.email?.split("@")[0] || uid.slice(0, 6);
-      };
+      let list = [...usersList];
 
       if (type === "wins") {
         headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Acertos</th><th style="text-align:center;">Taxa</th>`;
-        const list = globalRankings.bestByWins || [];
-        if (list.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Sem dados no ranking.</td></tr>`;
-          return;
-        }
+        // Filtrar e ordenar por acertos (betsWon)
+        list.forEach(u => {
+          u.wins = u.betsWon || 0;
+          u.total = u.betsTotal || 0;
+          u.rate = u.total > 0 ? (u.wins / u.total) : 0;
+        });
+        list.sort((a, b) => b.wins - a.wins || b.rate - a.rate || a.name.localeCompare(b.name));
+        
         tbody.innerHTML = list.map((r, i) => `
           <tr>
             <td><b>${i + 1}</b></td>
-            <td><b>${getUsername(r.uid)}</b></td>
+            <td><b>${r.name || r.displayName || 'Usuário'}</b></td>
             <td style="text-align:center; color: var(--accent-color); font-weight:700;">${r.wins}</td>
             <td style="text-align:center;">${Math.round(r.rate * 100)}%</td>
           </tr>
         `).join("");
       } else if (type === "points") {
         headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Saldo CCIP</th>`;
-        const list = globalRankings.mostPoints || [];
-        if (list.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;" class="text-secondary">Sem dados no ranking.</td></tr>`;
-          return;
-        }
+        list.sort((a, b) => (b.points || 0) - (a.points || 0) || a.name.localeCompare(b.name));
         tbody.innerHTML = list.map((r, i) => `
           <tr>
             <td><b>${i + 1}</b></td>
-            <td><b>${getUsername(r.uid)}</b></td>
-            <td style="text-align:center; color: var(--accent-color); font-weight:700;">${r.pts} CCIP</td>
+            <td><b>${r.name || r.displayName || 'Usuário'}</b></td>
+            <td style="text-align:center; color: var(--accent-color); font-weight:700;">${r.points || 0} CCIP</td>
           </tr>
         `).join("");
       } else {
         headers.innerHTML = `<th>Pos</th><th>Usuário</th><th style="text-align:center;">Total Apostado</th>`;
-        const list = globalRankings.mostBets || [];
-        if (list.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;" class="text-secondary">Sem dados no ranking.</td></tr>`;
-          return;
-        }
+        list.forEach(u => u.total = u.betsTotal || 0);
+        list.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
         tbody.innerHTML = list.map((r, i) => `
           <tr>
             <td><b>${i + 1}</b></td>
-            <td><b>${getUsername(r.uid)}</b></td>
+            <td><b>${r.name || r.displayName || 'Usuário'}</b></td>
             <td style="text-align:center;">${r.total}</td>
           </tr>
         `).join("");
       }
     }
 
-    function setupSocket() {
-      socket = io();
-
-      // Ouvir nova aposta adicionada no feed em tempo real
-      socket.on("bet_feed_added", (bet) => {
-        addBetToFeed(bet);
-      });
-
-      // Recarrega rankings quando aposta for reconciliada
-      socket.on("match_update", async () => {
-        await loadInitialData();
-      });
-    }
-
     function addBetToFeed(bet) {
       const tbody = document.getElementById("bets-feed-body");
+      
+      // Remover linha vazia se existir
       const noBetsRow = tbody.querySelector(".text-secondary");
       if (noBetsRow && noBetsRow.closest("tr")) {
         noBetsRow.closest("tr").remove();
       }
 
+      // Evitar duplicados
+      if (document.getElementById(`feed-bet-${bet.id}`)) return;
+
       const matchName = `${bet.aName} × ${bet.bName}`;
       const pickLabel = bet.pick === "A" ? "Vitória A" : (bet.pick === "B" ? "Vitória B" : "Empate");
-      const dateStr = new Date(bet.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const dateStr = bet.ts ? new Date(bet.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
 
       const tr = document.createElement("tr");
+      tr.id = `feed-bet-${bet.id}`;
       tr.innerHTML = `
         <td><b>${bet.userId}</b></td>
         <td>${matchName}</td>
@@ -586,7 +593,7 @@
       `;
       tbody.prepend(tr);
 
-      // Limitar feed a 10 linhas
+      // Limitar a 10 linhas
       if (tbody.children.length > 10) {
         tbody.removeChild(tbody.lastChild);
       }

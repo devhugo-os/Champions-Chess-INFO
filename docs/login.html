@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acesso - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
   <style>
     body {
       display: flex;
@@ -65,9 +65,8 @@
   <div class="login-wrapper">
     <div class="card login-card">
       <div class="brand-logo-glow">
-        <!-- Ícone de Cavalo de Xadrez em SVG -->
         <svg viewBox="0 0 24 24">
-          <path d="M19 22H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2zM12 6a3 3 0 0 0-3 3c0 2 1.5 3 2.5 4.5-.5.5-1 1-1 2H16.5c0-1.5-.5-2.5-1.5-3.5 1-1 2-2 2-4a3 3 0 0 0-3-3h-2z"/>
+          <path d="M12 2a10 10 0 0 0-10 10c0 5.52 4.47 10 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2zm1 14h-2v-2h2v2zm0-4h-2V7h2v5z"/>
         </svg>
       </div>
       
@@ -85,75 +84,49 @@
     </div>
   </div>
 
-  <script src="/js/security.js"></script>
+  <script src="js/security.js"></script>
 
-  <!-- Firebase CDN v10 (Apenas Auth client-side) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-    let auth;
-    try {
-      const resConfig = await fetch("/api/config/firebase");
-      const firebaseConfig = await resConfig.json();
-      const app = initializeApp(firebaseConfig);
-      auth = getAuth(app);
-    } catch (e) {
-      console.error("Erro ao carregar configurações do Firebase:", e);
-    }
-
-    window.loginWithGoogleFirebase = async () => {
-      if (!auth) {
-        throw new Error("Erro de configuração do Firebase.");
-      }
-      const provider = new GoogleAuthProvider();
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const token = await result.user.getIdToken();
-        return { token, user: result.user };
-      } catch (error) {
-        console.error("Erro Google popup:", error);
-        throw error;
-      }
-    };
-  </script>
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
 
   <script>
-    document.getElementById("btn-google-login").addEventListener("click", async () => {
+    document.getElementById("btn-google-login").addEventListener("click", () => {
       const errorEl = document.getElementById("login-error");
       const btn = document.getElementById("btn-google-login");
       errorEl.style.display = "none";
       btn.disabled = true;
 
-      try {
-        const { token, user } = await window.loginWithGoogleFirebase();
-        
-        // Configurar cookie de sessão token
-        document.cookie = `session_token=${token}; max-age=36000; path=/`;
-
-        // Chamar backend para inicializar perfil / carteira
-        const res = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-          window.location.href = "/"; // Ir para Home
-        } else {
-          errorEl.textContent = data.error || "Erro ao conectar com o servidor.";
+      const provider = new firebase.auth.GoogleAuthProvider();
+      window.auth.signInWithPopup(provider)
+        .then((result) => {
+          const user = result.user;
+          
+          // Salvar dados básicos temporários
+          const userLocal = {
+            uid: user.uid,
+            name: user.displayName || "Usuário",
+            email: user.email,
+            avatarBase64: user.photoURL || "https://lh3.googleusercontent.com/a/default-user=s96-c",
+            role: "spectator",
+            isAdmin: false,
+            participantStatus: "none"
+          };
+          localStorage.setItem("user", JSON.stringify(userLocal));
+          
+          // Redireciona para home, o firebase-config.js nas outras páginas 
+          // lidará com carregar/sincronizar o Firestore automaticamente
+          window.location.href = "index.html";
+        })
+        .catch((error) => {
+          console.error("Erro login Google popup:", error);
+          errorEl.textContent = "Erro no login do Google popup. Tente novamente.";
           errorEl.style.display = "block";
           btn.disabled = false;
-        }
-      } catch (error) {
-        errorEl.textContent = "Erro no login do Google popup. Tente novamente.";
-        errorEl.style.display = "block";
-        btn.disabled = false;
-      }
+        });
     });
   </script>
 </body>

@@ -4,73 +4,65 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verificação de Segurança - Champions Chess INFO</title>
-  <link rel="icon" type="image/png" href="/FavIcon.png">
+  <link rel="icon" type="image/png" href="FavIcon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="css/styles.css">
 </head>
-<body style="background: var(--bg-primary);">
-  
-  <div class="captcha-container">
-    <div class="card captcha-card">
-      <h2 style="color: var(--accent-color); border: none; padding-bottom: 0; justify-content: center;">Verificação Anti-Robô</h2>
-      <p style="margin-bottom: 20px;">Por favor, prove que você é um humano resolvendo a equação simples abaixo para liberar o acesso ao Champions Chess INFO.</p>
+<body style="background: var(--bg-primary); display: flex; align-items: center; justify-content: center; min-height: 100vh;">
+
+  <div style="max-width: 400px; width: 100%; padding: 16px;">
+    <div class="card" style="text-align: center; padding: 40px 30px;">
+      <h1 style="font-size: 24px; margin-bottom: 8px;">🔐 Verificação Humana</h1>
+      <p style="margin-bottom: 24px; font-size: 13.5px;">Resolva a equação abaixo para liberar o acesso ao site.</p>
       
-      <div id="captcha-question" class="math-expr">Carregando...</div>
-      
-      <form id="captcha-form">
-        <div class="form-group">
-          <input type="number" id="captcha-answer" class="form-control" placeholder="Digite o resultado aqui..." required autocomplete="off">
-        </div>
-        <button type="submit" class="btn" style="width: 100%;">Liberar Acesso</button>
+      <div id="captcha-box" class="math-expr">
+        Carregando...
+      </div>
+
+      <form id="captcha-form" style="display:flex; flex-direction:column; gap:12px;">
+        <input type="number" id="captcha-input" class="form-control" placeholder="Digite o resultado aqui" required autofocus>
+        <button type="submit" class="btn" style="width: 100%; height: 48px;">Verificar Resposta</button>
       </form>
-      
-      <p id="captcha-error" style="color: var(--danger-color); margin-top: 14px; display: none;"></p>
+      <p id="error-message" style="color: var(--danger-color); margin-top: 14px; display: none; font-size: 13px;"></p>
     </div>
   </div>
 
+  <script src="js/security.js"></script>
   <script>
-    // Carregar pergunta do Captcha ao carregar página
-    document.addEventListener("DOMContentLoaded", fetchCaptcha);
+    let correctAnswer = 0;
 
-    async function fetchCaptcha() {
-      try {
-        const res = await fetch("/api/captcha/question");
-        const data = await res.json();
-        document.getElementById("captcha-question").textContent = data.question;
-      } catch (error) {
-        document.getElementById("captcha-question").textContent = "Erro ao carregar";
-      }
+    function generateCaptcha() {
+      const num1 = Math.floor(Math.random() * 10) + 1;
+      const num2 = Math.floor(Math.random() * 10) + 1;
+      const operations = ["+", "-", "*"];
+      const op = operations[Math.floor(Math.random() * operations.length)];
+      
+      if (op === "+") correctAnswer = num1 + num2;
+      else if (op === "-") correctAnswer = num1 - num2;
+      else if (op === "*") correctAnswer = num1 * num2;
+
+      document.getElementById("captcha-box").textContent = `${num1} ${op} ${num2}`;
+      document.getElementById("captcha-input").value = "";
     }
 
-    document.getElementById("captcha-form").addEventListener("submit", async (e) => {
+    document.getElementById("captcha-form").addEventListener("submit", (e) => {
       e.preventDefault();
-      const answer = document.getElementById("captcha-answer").value;
-      const errorEl = document.getElementById("captcha-error");
+      const userAns = parseInt(document.getElementById("captcha-input").value);
+      const errorEl = document.getElementById("error-message");
       
-      try {
-        const res = await fetch("/api/captcha/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ answer })
-        });
-        
-        const data = await res.json();
-        if (data.success) {
-          window.location.href = "/";
-        } else {
-          errorEl.textContent = data.error || "Resposta incorreta.";
-          errorEl.style.display = "block";
-          document.getElementById("captcha-answer").value = "";
-          fetchCaptcha();
-        }
-      } catch (error) {
-        errorEl.textContent = "Erro de conexão. Tente novamente.";
+      if (userAns === correctAnswer) {
+        localStorage.setItem("captcha_solved", "true");
+        window.location.href = "login.html";
+      } else {
+        errorEl.textContent = "Resposta incorreta. Tente novamente.";
         errorEl.style.display = "block";
+        generateCaptcha();
       }
     });
-  </script>
 
-  <script src="/js/security.js"></script>
+    // Inicializar
+    generateCaptcha();
+  </script>
 </body>
 </html>
