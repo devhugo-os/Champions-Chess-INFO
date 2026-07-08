@@ -49,7 +49,7 @@
 }
 
 html, body {
-  height: 100%;
+  min-height: 100%;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-family);
@@ -620,14 +620,16 @@ body.mobile-mode .mobile-header {
 }
 
 .chat-bubble {
-  max-width: 80%;
+  max-width: 85%;
   background-color: rgba(12, 16, 32, 0.7);
   border: 1px solid var(--border-color);
-  padding: 14px 18px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   position: relative;
   align-self: flex-start;
   box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: flex-start;
 }
 
 .chat-bubble.mine {

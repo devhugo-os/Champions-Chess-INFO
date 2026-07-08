@@ -30,8 +30,9 @@
 
         <form id="profile-form">
           <div class="form-group">
-            <label for="profile-name">Nome Completo</label>
-            <input type="text" id="profile-name" class="form-control" placeholder="Seu Nome Completo" required>
+            <label for="profile-name">Nome de Usuário (Nick)</label>
+            <input type="text" id="profile-name" class="form-control" placeholder="Apenas minúsculas, números e _" required autocomplete="off">
+            <span style="font-size: 11px; color: var(--text-secondary); display: block; margin-top: 4px;">Nick único igual ao Instagram. Use apenas minúsculas, números e sublinhados (_).</span>
           </div>
           <div class="form-group">
             <label>E-mail Associado</label>
@@ -233,24 +234,61 @@
       }
     }
 
+    let selectedAvatarBase64 = null;
+
     async function saveProfile(e) {
       e.preventDefault();
       if (!window.auth.currentUser) return;
 
-      const displayName = document.getElementById("profile-name").value.trim();
-      const userRef = window.db.collection("users").doc(window.auth.currentUser.uid);
+      const name = document.getElementById("profile-name").value.trim().toLowerCase();
       
+      // Validação do padrão do nickname (letras minúsculas, números e sublinhados)
+      const nicknamePattern = /^[a-z0-9_]+$/;
+      if (!nicknamePattern.test(name)) {
+        alert("O nome de usuário deve conter apenas letras minúsculas, números e sublinhados (_), sem espaços ou caracteres especiais.");
+        return;
+      }
+
+      const uid = window.auth.currentUser.uid;
+      const userRef = window.db.collection("users").doc(uid);
+
       try {
-        await userRef.update({ displayName });
-        
+        // Verificar unicidade do nickname
+        const querySnap = await window.db.collection("users").where("name", "==", name).get();
+        let isTaken = false;
+        querySnap.forEach(doc => {
+          if (doc.id !== uid) {
+            isTaken = true;
+          }
+        });
+
+        if (isTaken) {
+          alert("Este nome de usuário já está em uso por outro enxadrista. Escolha outro nickname!");
+          return;
+        }
+
+        const updates = { name };
+        if (selectedAvatarBase64) {
+          updates.avatarBase64 = selectedAvatarBase64;
+        }
+
+        await userRef.update(updates);
+
+        // Atualizar localStorage
         let userLocal = JSON.parse(localStorage.getItem("user"));
-        userLocal.name = displayName;
+        userLocal.name = name;
+        if (selectedAvatarBase64) {
+          userLocal.avatarBase64 = selectedAvatarBase64;
+        }
         localStorage.setItem("user", JSON.stringify(userLocal));
-        
-        alert("Nome do perfil atualizado com sucesso!");
+
+        // Resetar avatar temporário para indicar que foi salvo
+        selectedAvatarBase64 = null;
+
+        alert("Perfil atualizado com sucesso!");
       } catch (error) {
-        console.error("Erro ao atualizar nome:", error);
-        alert("Erro ao atualizar perfil.");
+        console.error("Erro ao atualizar perfil:", error);
+        alert("Erro ao salvar alterações do perfil.");
       }
     }
 
@@ -275,30 +313,12 @@
           
           ctx.drawImage(img, xOffset, yOffset, size, size, 0, 0, 128, 128);
           
-          const base64Str = canvas.toDataURL("image/jpeg", 0.8);
-          uploadAvatar(base64Str);
+          selectedAvatarBase64 = canvas.toDataURL("image/jpeg", 0.8);
+          
+          // Mostrar apenas na pré-visualização (ainda não salvo no DB)
+          document.getElementById("avatar-img").src = selectedAvatarBase64;
         };
       };
-    }
-
-    async function uploadAvatar(avatarBase64) {
-      if (!window.auth.currentUser) return;
-
-      const userRef = window.db.collection("users").doc(window.auth.currentUser.uid);
-
-      try {
-        await userRef.update({ avatarBase64 });
-        
-        let userLocal = JSON.parse(localStorage.getItem("user"));
-        userLocal.avatarBase64 = avatarBase64;
-        localStorage.setItem("user", JSON.stringify(userLocal));
-        
-        document.getElementById("avatar-img").src = avatarBase64;
-        alert("Foto de perfil atualizada!");
-      } catch (error) {
-        console.error("Erro ao fazer upload do avatar:", error);
-        alert("Erro ao atualizar foto.");
-      }
     }
   </script>
 </body>

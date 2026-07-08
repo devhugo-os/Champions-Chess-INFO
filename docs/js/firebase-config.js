@@ -60,14 +60,17 @@ window.addEventListener("DOMContentLoaded", () => {
       .then(doc => {
         let role = "spectator";
         let participantStatus = "none";
-        let name = user.displayName || "Usuário";
+        
+        let rawName = (user.displayName || "user").toLowerCase().replace(/[^a-z0-9_]/g, "");
+        if (!rawName) rawName = "user";
+        let name = rawName + "_" + user.uid.substring(0, 4).toLowerCase();
         let avatarBase64 = user.photoURL || "https://lh3.googleusercontent.com/a/default-user=s96-c";
 
         if (doc.exists) {
           const data = doc.data();
           role = data.role || "spectator";
           participantStatus = data.participantStatus || "none";
-          name = data.displayName || name;
+          name = data.name || name; // Sempre puxa 'name' que é o nickname único
           avatarBase64 = data.avatarBase64 || avatarBase64;
           
           // Verificar se é admin na coleção admins
@@ -103,7 +106,6 @@ window.addEventListener("DOMContentLoaded", () => {
             uid: user.uid,
             name: name,
             email: user.email,
-            displayName: name,
             avatarBase64: avatarBase64,
             points: 1000, // saldo inicial
             role: "spectator",

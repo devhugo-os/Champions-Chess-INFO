@@ -223,7 +223,13 @@
         // 5. Ouvir rankings em tempo real (mudanças na coleção users)
         window.db.collection("users").onSnapshot(snapshot => {
           usersList = [];
-          snapshot.forEach(doc => { usersList.push({ id: doc.id, ...doc.data() }); });
+          snapshot.forEach(doc => { 
+            usersList.push({ id: doc.id, ...doc.data() }); 
+            
+            // Atualizar nomes no feed em tempo real se mudarem!
+            const cells = document.querySelectorAll(`.feed-user-${doc.id} .username-cell b`);
+            cells.forEach(c => c.textContent = doc.data().name || doc.data().displayName);
+          });
           renderRankings();
         });
 
@@ -440,6 +446,7 @@
         const feedRef = window.rtdb.ref("bet_feed").push();
         await feedRef.set({
           userId: currentUser.name,
+          userUid: currentUser.uid,
           aName: playersMap[match.aId] || "A",
           bName: playersMap[match.bId] || "B",
           pick,
@@ -582,10 +589,14 @@
       const pickLabel = bet.pick === "A" ? "Vitória A" : (bet.pick === "B" ? "Vitória B" : "Empate");
       const dateStr = bet.ts ? new Date(bet.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
 
+      const userProfile = usersList.find(u => u.id === bet.userUid);
+      const displayName = userProfile ? userProfile.name : bet.userId;
+
       const tr = document.createElement("tr");
       tr.id = `feed-bet-${bet.id}`;
+      tr.className = `feed-user-${bet.userUid}`;
       tr.innerHTML = `
-        <td><b>${bet.userId}</b></td>
+        <td class="username-cell"><b>${displayName}</b></td>
         <td>${matchName}</td>
         <td><span class="badge badge-info" style="background:rgba(16,185,129,0.08); color:var(--accent-color);">${pickLabel}</span></td>
         <td>${dateStr}</td>

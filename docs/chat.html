@@ -85,9 +85,32 @@
       document.getElementById("chat-form").addEventListener("submit", sendChatMessage);
     });
 
+    let usersMap = {};
+
     function setupChat() {
       const chatRef = window.rtdb.ref("chat");
       
+      // Ouvir usuários do Firestore em tempo real
+      window.db.collection("users").onSnapshot(snapshot => {
+        snapshot.forEach(doc => {
+          const uData = doc.data();
+          usersMap[doc.id] = uData;
+          
+          // Atualizar elementos de mensagens já renderizadas para este usuário
+          const bubbles = document.querySelectorAll(`.msg-user-${doc.id}`);
+          bubbles.forEach(bubble => {
+            const avatarImg = bubble.querySelector(".chat-avatar");
+            const senderName = bubble.querySelector(".sender");
+            if (avatarImg && uData.avatarBase64) {
+              avatarImg.src = uData.avatarBase64;
+            }
+            if (senderName) {
+              senderName.textContent = uData.name || "Usuário";
+            }
+          });
+        });
+      });
+
       // Ouvir nova mensagem
       chatRef.limitToLast(50).on("child_added", (snapshot) => {
         const msg = snapshot.val();
@@ -104,7 +127,7 @@
       const messagesContainer = document.getElementById("chat-messages");
       
       const isMine = currentUser && msg.uid === currentUser.uid;
-      const bubbleClass = isMine ? "chat-bubble mine" : "chat-bubble";
+      const bubbleClass = isMine ? `chat-bubble mine msg-user-${msg.uid}` : `chat-bubble msg-user-${msg.uid}`;
       
       const timeStr = msg.ts ? new Date(msg.ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
       
@@ -115,16 +138,27 @@
         ? `<button class="btn-delete-msg" onclick="deleteMessage('${msg.id}')">🗑 Apagar</button>` 
         : "";
 
+      const userProfile = usersMap[msg.uid] || {};
+      const avatarUrl = userProfile.avatarBase64 || msg.avatar || "https://lh3.googleusercontent.com/a/default-user=s96-c";
+      const senderName = userProfile.name || msg.name || "Usuário";
+
       const msgEl = document.createElement("div");
       msgEl.className = bubbleClass;
       msgEl.id = `msg-${msg.id}`;
+      
+      const avatarImgHtml = `<img class="chat-avatar" src="${avatarUrl}" style="width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--accent-color); flex-shrink: 0; margin-${isMine ? 'left' : 'right'}: 10px; object-fit: cover;" alt="Avatar"/>`;
+
       msgEl.innerHTML = `
-        <div class="sender">${msg.name}</div>
-        <div class="text">${escapeHtml(msg.text)}</div>
-        <div class="time" style="display:flex; align-items:center; gap:8px; position:relative; bottom:0; right:0; float:right; font-size:10px;">
-          <span>${timeStr}</span>
-          ${deleteBtnHtml}
+        ${!isMine ? avatarImgHtml : ""}
+        <div style="flex-grow: 1; min-width: 0;">
+          <div class="sender" style="font-size: 11.5px; font-weight: 800; color: ${isMine ? 'var(--accent-color)' : 'var(--secondary-color)'}; margin-bottom: 4px;">${senderName}</div>
+          <div class="text">${escapeHtml(msg.text)}</div>
+          <div class="time" style="display:flex; align-items:center; gap:8px; position:relative; bottom:0; right:0; float:right; font-size:10px; margin-top: 6px;">
+            ${deleteBtnHtml}
+            <span>${timeStr}</span>
+          </div>
         </div>
+        ${isMine ? avatarImgHtml : ""}
       `;
 
       messagesContainer.appendChild(msgEl);
@@ -144,6 +178,7 @@
         await window.rtdb.ref("chat").push({
           uid: currentUser.uid,
           name: currentUser.name,
+          avatar: currentUser.avatarBase64 || "",
           text: text,
           ts: firebase.database.ServerValue.TIMESTAMP
         });
