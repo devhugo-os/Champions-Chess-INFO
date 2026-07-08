@@ -28,28 +28,40 @@ app.use(express.json({ limit: "5mb" })); // Aumentado limite para aceitar imagen
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 app.use(cookieParser(SESSION_SECRET));
 
-// Middleware de verificação de Captcha para rotas públicas do front-end
-function captchaGuard(req, res, next) {
+// Middleware de segurança do front-end (Captcha + Login Obrigatório)
+function securityGuard(req, res, next) {
   const isStaticFile = req.path.includes(".") && !req.path.endsWith(".html");
   const isApiRoute = req.path.startsWith("/api");
   const isCaptchaPage = req.path === "/captcha" || req.path === "/captcha.html";
+  const isLoginPage = req.path === "/login" || req.path === "/login.html";
 
-  // Arquivos estáticos (imagens, css, js), API de captcha e a própria página de captcha estão isentos
-  if (isStaticFile || isApiRoute || isCaptchaPage) {
+  // Arquivos estáticos e rotas de API não entram nos redirecionamentos de página
+  if (isStaticFile || isApiRoute) {
     return next();
   }
 
-  // Verifica se o captcha já foi resolvido
-  if (req.cookies?.captcha_solved === "true") {
-    return next();
+  // 1. Verificar Captcha
+  const captchaSolved = req.cookies?.captcha_solved === "true";
+  if (!captchaSolved && !isCaptchaPage) {
+    return res.redirect("/captcha");
   }
 
-  // Redireciona para a página de Captcha
-  res.redirect("/captcha");
+  // 2. Verificar Login
+  const loggedIn = !!req.cookies?.session_token;
+  if (!loggedIn && !isLoginPage && !isCaptchaPage) {
+    return res.redirect("/login");
+  }
+
+  // 3. Se logado e tentar acessar o login, vai para a Home
+  if (loggedIn && isLoginPage) {
+    return res.redirect("/");
+  }
+
+  next();
 }
 
-// Aplicar barreira de captcha nas visualizações
-app.use(captchaGuard);
+// Aplicar barreira de segurança global
+app.use(securityGuard);
 
 // Servir arquivos estáticos da pasta public (exceto HTMLs principais, para fazer roteamento limpo)
 app.use(express.static(path.join(__dirname, "../public"), {
@@ -78,6 +90,7 @@ app.get("/perfil", (req, res) => res.sendFile(path.join(publicDir, "perfil.html"
 app.get("/vencedores", (req, res) => res.sendFile(path.join(publicDir, "vencedores.html")));
 app.get("/admin", (req, res) => res.sendFile(path.join(publicDir, "admin.html")));
 app.get("/captcha", (req, res) => res.sendFile(path.join(publicDir, "captcha.html")));
+app.get("/login", (req, res) => res.sendFile(path.join(publicDir, "login.html")));
 
 // Rota coringa para 404
 app.use((req, res) => {

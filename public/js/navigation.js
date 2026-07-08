@@ -12,6 +12,30 @@ function renderNavigation() {
     if (userStr) user = JSON.parse(userStr);
   } catch (e) {}
 
+  // Se por acaso cair aqui sem usuário no localStorage mas tiver o cookie, 
+  // faremos o fetch do perfil para salvar no localStorage
+  const token = document.cookie.split("; ").find(r => r.startsWith("session_token="))?.split("=")[1];
+  
+  if (!user && token) {
+    fetch("/api/auth/profile", {
+      headers: { "Authorization": `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.profile) {
+        const u = {
+          uid: data.profile.id,
+          name: data.profile.displayName || data.profile.name,
+          role: data.profile.role,
+          participantStatus: data.profile.participantStatus,
+          avatarBase64: data.profile.avatarBase64
+        };
+        localStorage.setItem("user", JSON.stringify(u));
+        window.location.reload();
+      }
+    }).catch(e => console.warn("Erro ao recuperar perfil em navegação:", e));
+  }
+
   const isAdmin = user && (user.role === "admin" || user.isAdmin === true);
 
   // 1. Criar Navbar Desktop
@@ -26,17 +50,13 @@ function renderNavigation() {
     <a href="/jogadores" class="${currentPath === "/jogadores" ? "active" : ""}">Jogadores</a>
     <a href="/comunicados" class="${currentPath === "/comunicados" ? "active" : ""}">Comunicados</a>
     <a href="/vencedores" class="${currentPath === "/vencedores" ? "active" : ""}">Vencedores</a>
+    <a href="/chat" class="${currentPath === "/chat" ? "active" : ""}">Chat</a>
+    <a href="/apostas" class="${currentPath === "/apostas" ? "active" : ""}">Apostas</a>
+    <a href="/perfil" class="${currentPath === "/perfil" ? "active" : ""}">Perfil</a>
   `;
 
-  if (user) {
-    desktopNavLinks += `
-      <a href="/chat" class="${currentPath === "/chat" ? "active" : ""}">Chat</a>
-      <a href="/apostas" class="${currentPath === "/apostas" ? "active" : ""}">Apostas</a>
-      <a href="/perfil" class="${currentPath === "/perfil" ? "active" : ""}">Perfil</a>
-    `;
-    if (isAdmin) {
-      desktopNavLinks += `<a href="/admin" class="${currentPath === "/admin" ? "active" : ""}" style="color: #ffd8a8;">Painel Admin</a>`;
-    }
+  if (isAdmin) {
+    desktopNavLinks += `<a href="/admin" class="${currentPath === "/admin" ? "active" : ""}" style="color: #ffd8a8; border-color: rgba(255, 216, 168, 0.2);">Painel Admin</a>`;
   }
 
   let authAreaHtml = "";
@@ -44,17 +64,11 @@ function renderNavigation() {
     const avatar = user.avatarBase64 || "https://lh3.googleusercontent.com/a/default-user=s96-c";
     authAreaHtml = `
       <div class="auth-area">
-        <a href="/perfil" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
-          <img src="${avatar}" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--accent-color);" alt="Avatar"/>
-          <span style="font-size:13px;font-weight:600;">${user.name}</span>
+        <a href="/perfil" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+          <img src="${avatar}" style="width:34px;height:34px;border-radius:50%;border:2px solid var(--accent-color);" alt="Avatar"/>
+          <span style="font-size:13.5px;font-weight:600;color:var(--text-primary);">${user.name}</span>
         </a>
-        <button id="btn-desktop-logout" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;">Sair</button>
-      </div>
-    `;
-  } else {
-    authAreaHtml = `
-      <div class="auth-area">
-        <a href="/perfil" class="btn" style="padding:8px 16px;font-size:12px;text-decoration:none;color:#062010;">Entrar com Google</a>
+        <button id="btn-desktop-logout" class="btn btn-ghost" style="padding:6px 14px;font-size:12px;border-radius:9999px;">Sair</button>
       </div>
     `;
   }
@@ -96,40 +110,28 @@ function renderNavigation() {
       ${tableIcon}
       <span>Tabela</span>
     </a>
+    <a href="/apostas" class="${currentPath === "/apostas" ? "active" : ""}">
+      ${betsIcon}
+      <span>Apostas</span>
+    </a>
+    <a href="/chat" class="${currentPath === "/chat" ? "active" : ""}">
+      ${chatIcon}
+      <span>Chat</span>
+    </a>
   `;
 
-  if (user) {
+  if (isAdmin) {
     mobileNavLinks += `
-      <a href="/apostas" class="${currentPath === "/apostas" ? "active" : ""}">
-        ${betsIcon}
-        <span>Apostas</span>
-      </a>
-      <a href="/chat" class="${currentPath === "/chat" ? "active" : ""}">
-        ${chatIcon}
-        <span>Chat</span>
+      <a href="/admin" class="${currentPath === "/admin" ? "active" : ""}">
+        ${adminIcon}
+        <span>Admin</span>
       </a>
     `;
-    
-    if (isAdmin) {
-      mobileNavLinks += `
-        <a href="/admin" class="${currentPath === "/admin" ? "active" : ""}">
-          ${adminIcon}
-          <span>Admin</span>
-        </a>
-      `;
-    } else {
-      mobileNavLinks += `
-        <a href="/perfil" class="${currentPath === "/perfil" ? "active" : ""}">
-          ${profileIcon}
-          <span>Perfil</span>
-        </a>
-      `;
-    }
   } else {
     mobileNavLinks += `
       <a href="/perfil" class="${currentPath === "/perfil" ? "active" : ""}">
         ${profileIcon}
-        <span>Entrar</span>
+        <span>Perfil</span>
       </a>
     `;
   }
@@ -146,7 +148,7 @@ function renderNavigation() {
     desktopLogoutBtn.addEventListener("click", () => {
       localStorage.removeItem("user");
       document.cookie = "session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      window.location.href = "/";
+      window.location.href = "/login";
     });
   }
 }
