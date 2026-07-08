@@ -400,6 +400,17 @@ tr:hover {
   border-radius: 9999px;
   border: 1px solid transparent;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+@media (max-width: 1150px) {
+  .desktop-navbar .nav-links a {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .desktop-navbar .logo-area strong {
+    font-size: 14px;
+  }
 }
 
 .desktop-navbar .nav-links a:hover {

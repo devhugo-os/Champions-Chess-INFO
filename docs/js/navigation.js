@@ -40,20 +40,20 @@ function renderNavigation() {
   if (user) {
     const avatar = user.avatarBase64 || "https://lh3.googleusercontent.com/a/default-user=s96-c";
     authAreaHtml = `
-      <div class="auth-area">
-        <a href="perfil.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
-          <img src="${avatar}" style="width:34px;height:34px;border-radius:50%;border:2px solid var(--accent-color);" alt="Avatar"/>
-          <span style="font-size:13.5px;font-weight:600;color:var(--text-primary);">${user.name}</span>
+      <div class="auth-area" style="flex-shrink:0;">
+        <a href="perfil.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;max-width:150px;overflow:hidden;">
+          <img src="${avatar}" style="width:34px;height:34px;border-radius:50%;border:2px solid var(--accent-color);flex-shrink:0;" alt="Avatar"/>
+          <span style="font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;text-overflow:ellipsis;overflow:hidden;max-width:90px;">${user.name}</span>
         </a>
-        <button id="btn-desktop-logout" class="btn btn-ghost" style="padding:6px 14px;font-size:12px;border-radius:9999px;">Sair</button>
+        <button id="btn-desktop-logout" class="btn btn-ghost" style="padding:6px 12px;font-size:11.5px;border-radius:9999px;flex-shrink:0;">Sair</button>
       </div>
     `;
   }
 
   desktopNav.innerHTML = `
-    <div class="logo-area" style="cursor:pointer;" onclick="window.location.href='index.html'">
-      <img src="logo.png" alt="Logo"/>
-      <strong>Champions Chess INFO</strong>
+    <div class="logo-area" style="cursor:pointer;flex-shrink:0;" onclick="window.location.href='index.html'">
+      <img src="logo.png" style="flex-shrink:0;" alt="Logo"/>
+      <strong style="white-space:nowrap;">Champions Chess INFO</strong>
     </div>
     <div class="nav-links">
       ${desktopNavLinks}
