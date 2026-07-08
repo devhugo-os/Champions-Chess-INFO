@@ -92,20 +92,20 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCIJNmHcgPYhmD_KVCu07nRY6u3KlXbcXM",
-      authDomain: "champions-chess-info.firebaseapp.com",
-      projectId: "champions-chess-info",
-      storageBucket: "champions-chess-info.firebasestorage.app",
-      messagingSenderId: "548386751104",
-      appId: "1:548386751104:web:fb9232b77bdba4c9405c65",
-      measurementId: "G-4BDSJWJS98"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
+    let auth;
+    try {
+      const resConfig = await fetch("/api/config/firebase");
+      const firebaseConfig = await resConfig.json();
+      const app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+    } catch (e) {
+      console.error("Erro ao carregar configurações do Firebase:", e);
+    }
 
     window.loginWithGoogleFirebase = async () => {
+      if (!auth) {
+        throw new Error("Erro de configuração do Firebase.");
+      }
       const provider = new GoogleAuthProvider();
       try {
         const result = await signInWithPopup(auth, provider);

@@ -63,8 +63,8 @@ function securityGuard(req, res, next) {
 // Aplicar barreira de segurança global
 app.use(securityGuard);
 
-// Servir arquivos estáticos da pasta public (exceto HTMLs principais, para fazer roteamento limpo)
-app.use(express.static(path.join(__dirname, "../public"), {
+// Servir arquivos estáticos da pasta docs (exceto HTMLs principais, para fazer roteamento limpo)
+app.use(express.static(path.join(__dirname, "../docs"), {
   extensions: ["html"] // permite servir arquivos sem .html na URL
 }));
 
@@ -77,24 +77,24 @@ app.use((req, res, next) => {
 app.use("/api", apiRouter);
 
 // Roteamento Limpo para o Front-end (Views Individuais em rotas específicas)
-const publicDir = path.join(__dirname, "../public");
-app.get("/", (req, res) => res.sendFile(path.join(publicDir, "index.html")));
-app.get("/regulamento", (req, res) => res.sendFile(path.join(publicDir, "regulamento.html")));
-app.get("/partidas", (req, res) => res.sendFile(path.join(publicDir, "partidas.html")));
-app.get("/tabela", (req, res) => res.sendFile(path.join(publicDir, "tabela.html")));
-app.get("/jogadores", (req, res) => res.sendFile(path.join(publicDir, "players.html")));
-app.get("/comunicados", (req, res) => res.sendFile(path.join(publicDir, "comunicados.html")));
-app.get("/apostas", (req, res) => res.sendFile(path.join(publicDir, "apostas.html")));
-app.get("/chat", (req, res) => res.sendFile(path.join(publicDir, "chat.html")));
-app.get("/perfil", (req, res) => res.sendFile(path.join(publicDir, "perfil.html")));
-app.get("/vencedores", (req, res) => res.sendFile(path.join(publicDir, "vencedores.html")));
-app.get("/admin", (req, res) => res.sendFile(path.join(publicDir, "admin.html")));
-app.get("/captcha", (req, res) => res.sendFile(path.join(publicDir, "captcha.html")));
-app.get("/login", (req, res) => res.sendFile(path.join(publicDir, "login.html")));
+const docsDir = path.join(__dirname, "../docs");
+app.get("/", (req, res) => res.sendFile(path.join(docsDir, "index.html")));
+app.get("/regulamento", (req, res) => res.sendFile(path.join(docsDir, "regulamento.html")));
+app.get("/partidas", (req, res) => res.sendFile(path.join(docsDir, "partidas.html")));
+app.get("/tabela", (req, res) => res.sendFile(path.join(docsDir, "tabela.html")));
+app.get("/jogadores", (req, res) => res.sendFile(path.join(docsDir, "players.html")));
+app.get("/comunicados", (req, res) => res.sendFile(path.join(docsDir, "comunicados.html")));
+app.get("/apostas", (req, res) => res.sendFile(path.join(docsDir, "apostas.html")));
+app.get("/chat", (req, res) => res.sendFile(path.join(docsDir, "chat.html")));
+app.get("/perfil", (req, res) => res.sendFile(path.join(docsDir, "perfil.html")));
+app.get("/vencedores", (req, res) => res.sendFile(path.join(docsDir, "vencedores.html")));
+app.get("/admin", (req, res) => res.sendFile(path.join(docsDir, "admin.html")));
+app.get("/captcha", (req, res) => res.sendFile(path.join(docsDir, "captcha.html")));
+app.get("/login", (req, res) => res.sendFile(path.join(docsDir, "login.html")));
 
 // Rota coringa para 404
 app.use((req, res) => {
-  res.status(404).sendFile(path.join(publicDir, "index.html")); // Redireciona para início se rota não existir
+  res.status(404).sendFile(path.join(docsDir, "index.html")); // Redireciona para início se rota não existir
 });
 
 // ==================================================================

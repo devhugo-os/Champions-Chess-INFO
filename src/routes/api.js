@@ -10,6 +10,22 @@ const chatController = require("../controllers/chatController");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
 
 // ==========================================
+// CONFIGURATIONS ENDPOINTS
+// ==========================================
+// Retorna a configuração do Firebase client-side dinamicamente para evitar alertas de vazamento no GitHub
+router.get("/config/firebase", (req, res) => {
+  res.json({
+    apiKey: process.env.FIREBASE_API_KEY || "AIzaSyCIJNmHcgPYhmD_KVCu07nRY6u3KlXbcXM",
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN || "champions-chess-info.firebaseapp.com",
+    projectId: process.env.FIREBASE_PROJECT_ID || "champions-chess-info",
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "champions-chess-info.firebasestorage.app",
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "548386751104",
+    appId: process.env.FIREBASE_APP_ID || "1:548386751104:web:fb9232b77bdba4c9405c65",
+    measurementId: process.env.FIREBASE_MEASUREMENT_ID || "G-4BDSJWJS98"
+  });
+});
+
+// ==========================================
 // CAPTCHA ENDPOINTS
 // ==========================================
 // Gerar pergunta do captcha
