@@ -26,12 +26,11 @@
             <tr>
               <th>Usuário</th>
               <th>E-mail</th>
-              <th>Grupo Destino</th>
               <th style="width: 200px;">Ações</th>
             </tr>
           </thead>
           <tbody id="waitlist-body">
-            <tr><td colspan="4" style="text-align:center;" class="text-secondary">Carregando inscrições...</td></tr>
+            <tr><td colspan="3" style="text-align:center;" class="text-secondary">Carregando inscrições...</td></tr>
           </tbody>
         </table>
       </div>
@@ -69,7 +68,7 @@
               </select>
             </div>
             
-            <div class="form-group">
+            <div class="form-group" id="match-group-wrapper">
               <label for="match-group">Grupo (Se Fase de Grupos)</label>
               <select id="match-group" class="form-control">
                 <option value="">Nenhum</option>
@@ -250,6 +249,15 @@
       // Geração automática de código de partida
       document.getElementById("match-stage").addEventListener("change", autoGenerateMatchCode);
       document.getElementById("match-group").addEventListener("change", autoGenerateMatchCode);
+      document.getElementById("match-stage").addEventListener("change", (e) => {
+        const wrapper = document.getElementById("match-group-wrapper");
+        if (e.target.value === "groups") {
+          wrapper.style.display = "block";
+        } else {
+          wrapper.style.display = "none";
+          document.getElementById("match-group").value = "";
+        }
+      });
 
       // Submit do form de jogadores
       document.getElementById("player-form").addEventListener("submit", savePlayer);
@@ -276,7 +284,7 @@
         window.db.collection("waitlist").onSnapshot(snapshot => {
           const tbody = document.getElementById("waitlist-body");
           if (snapshot.empty) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;" class="text-secondary">Nenhuma inscrição pendente na fila de espera.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;" class="text-secondary">Nenhuma inscrição pendente na fila de espera.</td></tr>`;
             return;
           }
 
@@ -287,12 +295,6 @@
             <tr>
               <td><b>${w.name}</b></td>
               <td>${w.email}</td>
-              <td>
-                <select id="group-select-${w.id}" class="form-control" style="padding: 6px 12px; width: 100px;">
-                  <option value="A">Grupo A</option>
-                  <option value="B">Grupo B</option>
-                </select>
-              </td>
               <td>
                 <div style="display:flex; gap:8px;">
                   <button class="btn" style="padding: 6px 12px; font-size:12px;" onclick="approveUser('${w.id}')">Aprovar</button>
@@ -309,7 +311,7 @@
     }
 
     async function approveUser(uid) {
-      const group = document.getElementById(`group-select-${uid}`).value;
+      const group = Math.random() < 0.5 ? "A" : "B";
       const waitlistRef = window.db.collection("waitlist").doc(uid);
       const userRef = window.db.collection("users").doc(uid);
       const playerRef = window.db.collection("players").doc(uid);
@@ -348,7 +350,7 @@
     }
 
     async function rejectUser(uid) {
-      if (!confirm("Deseja recusar esta inscrição?")) return;
+      if (!(await window.customConfirm("Deseja recusar esta inscrição?"))) return;
       
       const waitlistRef = window.db.collection("waitlist").doc(uid);
       const userRef = window.db.collection("users").doc(uid);
@@ -446,7 +448,7 @@
     }
 
     async function deletePlayer(id) {
-      if (!confirm("Tem certeza que deseja excluir este jogador?")) return;
+      if (!(await window.customConfirm("Tem certeza que deseja excluir este jogador?"))) return;
 
       try {
         await window.db.collection("players").doc(id).delete();
@@ -463,7 +465,7 @@
         alert("Nenhum jogador ativo para aleatorizar.");
         return;
       }
-      if (!confirm("Deseja realmente aleatorizar os grupos? Isso dividirá todos os jogadores atuais igualmente entre Grupo A e Grupo B.")) {
+      if (!(await window.customConfirm("Deseja realmente aleatorizar os grupos? Isso dividirá todos os jogadores atuais igualmente entre Grupo A e Grupo B."))) {
         return;
       }
 
@@ -593,7 +595,14 @@
       const stage = document.getElementById("match-stage").value;
       const group = document.getElementById("match-group").value;
       const date = document.getElementById("match-date").value;
-      const code = document.getElementById("match-code").value.trim();
+      if (stage === "groups") {
+        const playerA = players.find(p => p.id === aId);
+        const playerB = players.find(p => p.id === bId);
+        if (playerA && playerB && playerA.group !== playerB.group) {
+          alert("Erro: Não podem existir confrontos de Fase de Grupos entre jogadores de grupos diferentes!");
+          return;
+        }
+      }
 
       try {
         if (id) {
@@ -605,9 +614,44 @@
           const matchDoc = await matchRef.get();
           const matchData = matchDoc.data();
 
-          if (status === "finished" && matchData.status !== "finished" && result) {
+          if (result === "postponed") {
+            // Reconciliação (reembolso) de apostas e reset da partida
+            await reconcileMatchBetsTransaction(id, "postponed");
+            
+            const playerA = players.find(p => p.id === aId);
+            const playerB = players.find(p => p.id === bId);
+            const pAName = playerA ? playerA.name : "Jogador A";
+            const pBName = playerB ? playerB.name : "Jogador B";
+            await createAutoPost(
+              `📅 Confronto Adiado: ${code}`,
+              `Atenção enxadristas! O confronto de código **${code}** entre **${pAName}** e **${pBName}** foi adiado pela organização. Uma nova data e horário serão agendados em breve.`
+            );
+          } else if (status === "finished" && matchData.status !== "finished" && result) {
             // Reconciliação transacional client-side de apostas!
             await reconcileMatchBetsTransaction(id, result);
+            
+            const playerA = players.find(p => p.id === aId);
+            const playerB = players.find(p => p.id === bId);
+            const pAName = playerA ? playerA.name : "Jogador A";
+            const pBName = playerB ? playerB.name : "Jogador B";
+            const stageNames = {
+              groups: "Fase de Grupos",
+              semifinal: "Semifinal",
+              final: "Final",
+              third: "3º Lugar"
+            };
+            const stageLabel = stageNames[stage] || stage.toUpperCase();
+            let postTitle = `🏆 Fim de Jogo: ${code}`;
+            let postBody = "";
+            if (result === "draw") {
+              postTitle = `🤝 Empate: ${code}`;
+              postBody = `O emocionante confronto de código **${code}** entre **${pAName}** e **${pBName}** pela etapa **${stageLabel}** terminou empatado! Que grande partida!`;
+            } else if (result === "A") {
+              postBody = `O enxadrista **${pAName}** obteve a vitória contra **${pBName}** no confronto de código **${code}** pela etapa **${stageLabel}**! Parabéns ao vencedor!`;
+            } else if (result === "B") {
+              postBody = `O enxadrista **${pBName}** obteve a vitória contra **${pAName}** no confronto de código **${code}** pela etapa **${stageLabel}**! Parabéns ao vencedor!`;
+            }
+            await createAutoPost(postTitle, postBody);
           } else {
             // Apenas update simples (se já finalizado ou não sendo finalizado)
             await matchRef.update({
@@ -632,6 +676,17 @@
         console.error("Erro ao salvar partida:", error);
         alert("Erro ao salvar partida: " + error.message);
       }
+    async function createAutoPost(title, body) {
+      try {
+        await window.db.collection("posts").add({
+          title: title,
+          body: body,
+          authorName: "Champions Bot 🤖",
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch (e) {
+        console.error("Erro ao criar comunicado automático:", e);
+      }
     }
 
     // Algoritmo de Reconciliação de Apostas no Cliente via Transações
@@ -645,8 +700,18 @@
         .get();
 
       if (betsSnap.empty) {
-        // Sem palpites pendentes, apenas finaliza
-        await matchRef.update({ status: "finished", result });
+        // Sem palpites pendentes, apenas finaliza ou adia
+        if (result === "postponed") {
+          await matchRef.update({
+            status: "scheduled",
+            result: "",
+            date: "",
+            readyA: false,
+            readyB: false
+          });
+        } else {
+          await matchRef.update({ status: "finished", result });
+        }
         return;
       }
 
@@ -668,7 +733,17 @@
         }
 
         // 2. Atualizar status da partida
-        transaction.update(matchRef, { status: "finished", result });
+        if (result === "postponed") {
+          transaction.update(matchRef, {
+            status: "scheduled",
+            result: "",
+            date: "",
+            readyA: false,
+            readyB: false
+          });
+        } else {
+          transaction.update(matchRef, { status: "finished", result });
+        }
 
         // 3. Processar cada palpite
         betsSnap.forEach(betDoc => {
@@ -720,6 +795,8 @@
       document.getElementById("match-group").value = m.group || "";
       document.getElementById("match-code").value = m.code || "";
       
+      document.getElementById("match-group-wrapper").style.display = (m.stage === "groups") ? "block" : "none";
+
       if (m.date) {
         const d = new Date(m.date);
         const format2 = n => n < 10 ? `0${n}` : n;
@@ -743,6 +820,7 @@
     function cancelMatchEdit() {
       document.getElementById("match-id").value = "";
       document.getElementById("match-form").reset();
+      document.getElementById("match-group-wrapper").style.display = "block";
       document.getElementById("result-status-area").style.display = "none";
       document.getElementById("match-form-title").textContent = "📅 Criar Partida";
       document.getElementById("btn-submit-match").textContent = "Salvar Partida";
@@ -750,7 +828,7 @@
     }
 
     async function deleteMatch(id) {
-      if (!confirm("Tem certeza que deseja excluir esta partida?")) return;
+      if (!(await window.customConfirm("Tem certeza que deseja excluir esta partida?"))) return;
 
       try {
         await window.db.collection("matches").doc(id).delete();
@@ -763,7 +841,7 @@
 
     // Ferramentas Extras
     async function clearCommunityChat() {
-      if (!confirm("ATENÇÃO: Deseja apagar permanentemente todas as mensagens do chat da comunidade? Esta ação não pode ser desfeita.")) return;
+      if (!(await window.customConfirm("ATENÇÃO: Deseja apagar permanentemente todas as mensagens do chat da comunidade? Esta ação não pode ser desfeita."))) return;
 
       try {
         await window.rtdb.ref("chat").remove();

@@ -358,17 +358,31 @@ body.desktop-mode .desktop-navbar {
   cursor: pointer;
   flex-shrink: 0;
 }
-.desktop-navbar .logo-area img {
-  width: 60px;
-  height: 60px;
+.desktop-navbar .logo-wrapper {
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
-  border: 1px solid var(--border-color);
+  border: 2px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  background: var(--bg-secondary);
+}
+.desktop-navbar .logo-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.35);
   transition: all 0.3s ease;
 }
-.desktop-navbar .logo-area:hover img {
+.desktop-navbar .logo-area:hover .logo-wrapper {
   border-color: var(--accent-color);
   box-shadow: 0 0 10px var(--accent-glow);
-  transform: rotate(15deg);
+}
+.desktop-navbar .logo-area:hover .logo-wrapper img {
+  transform: scale(1.35) rotate(15deg);
 }
 .desktop-navbar .logo-area strong {
   font-size: 15px;
@@ -450,10 +464,22 @@ body.mobile-mode .mobile-header {
   gap: 8px;
   cursor: pointer;
 }
-.mobile-header .logo-area img {
-  width: 50px;
-  height: 50px;
+.mobile-header .logo-wrapper {
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
+  border: 2px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+}
+.mobile-header .logo-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.35);
 }
 .mobile-header .logo-area strong {
   font-size: 14px;
@@ -802,4 +828,31 @@ body.mobile-mode .mobile-header {
   align-items: center;
   justify-content: center;
   z-index: 999999;
+}
+
+/* Otimizações Responsivas Mobile */
+@media (max-width: 600px) {
+  .card {
+    padding: 16px;
+    border-radius: var(--radius-md);
+  }
+  .container {
+    padding: 12px;
+  }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+  }
+  .form-control {
+    padding: 10px;
+  }
+  .btn {
+    padding: 10px 16px;
+    font-size: 13.5px;
+  }
+  .grid-2 {
+    gap: 16px;
+  }
 }

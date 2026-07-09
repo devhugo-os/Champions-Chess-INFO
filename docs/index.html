@@ -129,10 +129,10 @@
               const dateStr = m.date ? new Date(m.date).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "A definir";
               const stageStr = m.stage === "groups" ? `Grupo ${m.group || ""}` : m.stage.toUpperCase();
               
-              let statusBadge = `<span class="badge badge-info">Agendado</span>`;
-              if (m.status === "live") {
-                statusBadge = `<span class="badge badge-danger" style="animation: pulse 1.5s infinite;">AO VIVO</span>`;
-              }
+              const isLive = m.status === "live" || (m.readyA && m.readyB);
+              let statusBadge = isLive 
+                ? `<span class="badge badge-danger" style="animation: pulse 1.5s infinite; background:#ef4444; color:#fff;">AO VIVO</span>`
+                : `<span class="badge badge-info">Agendado</span>`;
 
               return `
                 <tr>

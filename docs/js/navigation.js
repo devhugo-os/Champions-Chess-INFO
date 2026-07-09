@@ -86,7 +86,7 @@ function renderNavigation() {
 
   desktopNav.innerHTML = `
     <div class="logo-area" style="cursor:pointer;flex-shrink:0;" onclick="window.location.href='index.html'">
-      <img src="logo.png" style="flex-shrink:0;" alt="Logo"/>
+      <div class="logo-wrapper"><img src="logo.png" style="flex-shrink:0;" alt="Logo"/></div>
       <strong style="white-space:nowrap;">Champions Chess INFO</strong>
     </div>
     <div class="nav-links">
@@ -105,7 +105,7 @@ function renderNavigation() {
 
   mobileHeader.innerHTML = `
     <div class="logo-area" onclick="window.location.href='index.html'">
-      <img src="logo.png" alt="Logo"/>
+      <div class="logo-wrapper"><img src="logo.png" alt="Logo"/></div>
       <strong>Champions Chess</strong>
     </div>
     <div class="right-side">
@@ -167,7 +167,7 @@ function renderNavigation() {
     </div>
     <div class="drawer-footer">
       ${user ? `<button id="btn-mobile-logout" class="btn btn-ghost" style="width:100%; justify-content:center;">Sair da Conta</button>` : ''}
-      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.5</span>
+      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.0</span>
     </div>
   `;
 
@@ -176,6 +176,74 @@ function renderNavigation() {
   document.body.appendChild(mobileHeader);
   document.body.appendChild(backdrop);
   document.body.appendChild(drawer);
+
+  // Injetar estilos customizados para Alert e Confirm na tela
+  if (!document.getElementById("custom-modal-styles")) {
+    const style = document.createElement("style");
+    style.id = "custom-modal-styles";
+    style.innerHTML = `
+      .custom-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(6, 9, 19, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .custom-modal-card {
+        max-width: 420px;
+        width: 100%;
+        border: 1px solid var(--border-color);
+        padding: 24px;
+        border-radius: var(--radius-md);
+        background: #0d1117;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        animation: modalFadeIn 0.2s ease-out;
+      }
+      @keyframes modalFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .custom-toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: #161b22;
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-color);
+        color: var(--text-primary);
+        padding: 14px 20px;
+        border-radius: 6px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        z-index: 1000000;
+        font-size: 13.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        animation: toastSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      }
+      @keyframes toastSlideIn {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      @media (max-width: 480px) {
+        .custom-toast {
+          left: 16px;
+          right: 16px;
+          bottom: 16px;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   // Listeners do Hamburguer Menu
   const toggleDrawer = () => {
@@ -207,7 +275,7 @@ function renderNavigation() {
       <div style="display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;">
         <span>© Champions Chess INFO</span>
         <button onclick="showChangelogModal()" class="btn btn-ghost" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          📋 Versão v1.5.0 (Histórico de Alterações)
+          📋 Versão v1.6.0 (Histórico de Alterações)
         </button>
       </div>
     `;
@@ -226,29 +294,31 @@ window.showChangelogModal = function() {
         <h2 style="margin-bottom: 20px; font-weight: 800; text-align: center; background: linear-gradient(135deg, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Histórico de Alterações</h2>
         
         <div style="overflow-y: auto; flex-grow: 1; text-align: left; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.5.0 (Atual)</h4>
+          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.0 (Atual)</h4>
           <ul style="margin-bottom: 16px; padding-left: 20px;">
-            <li>Ampliação de escala dos logos e avatares (Desktop 50px, Mobile 44px) para maior visibilidade.</li>
-            <li>Cadastro obrigatório de nickname no primeiro acesso (onboarding).</li>
-            <li>Limitação de alteração de nickname a no máximo 3 vezes por usuário.</li>
+            <li>Sincronização de xadrez híbrida via P2P (WebRTC DataChannel) com fallback via RTDB (WebSockets).</li>
+            <li>Responsividade mobile profunda nos tabuleiros, grades de estatísticas e tabelas.</li>
+            <li>Substituição de alertas e diálogos do navegador por toasts e modais de confirmação customizados.</li>
+            <li>Geração automática de comunicados de vitórias, empates e adiamentos na linha do tempo.</li>
+            <li>Distribuição aleatória automática de grupos ao aprovar membro na fila do torneio.</li>
+            <li>Validação estrutural para impedir partidas da fase de grupos entre grupos diferentes.</li>
+          </ul>
+
+          <h4 style="color: var(--secondary-color); margin-bottom: 4px;">Versão v1.5.0</h4>
+          <ul style="margin-bottom: 16px; padding-left: 20px;">
+            <li>Ampliação de escala dos logos e avatares (Desktop 60px, Mobile 50px) para maior visibilidade.</li>
+            <li>Cadastro obrigatório de nickname no primeiro acesso (onboarding) e limite de 3 alterações.</li>
             <li>Correção de salvamento tardio da imagem de perfil apenas ao clicar em Salvar Alterações.</li>
-            <li>Recarregamento automático de página para atualizar dados da navbar.</li>
             <li>Prevenção de race condition na seleção de papéis com desativação/cancelamento seguro da waitlist.</li>
             <li>Sistema de verificação de atualização forçada com base na versão remota do Realtime Database.</li>
           </ul>
           
-          <h4 style="color: var(--secondary-color); margin-bottom: 4px;">Versão v1.4.0</h4>
+          <h4 style="color: var(--text-muted); margin-bottom: 4px;">Versão v1.4.0</h4>
           <ul style="margin-bottom: 16px; padding-left: 20px;">
             <li>Substituição da barra móvel inferior por Cabeçalho de 54px + Menu lateral (Drawer) Hamburguer.</li>
             <li>Detecção aprimorada de dispositivos móveis em modo paisagem (Landscape).</li>
             <li>Correções de alinhamento na tabela de classificação de apostadores.</li>
             <li>Ocultação de painéis extras no preview do Regulamento PDF.</li>
-          </ul>
-          
-          <h4 style="color: var(--text-muted); margin-bottom: 4px;">Versão v1.3.0</h4>
-          <ul style="padding-left: 20px;">
-            <li>Migração completa para Single Page Application (SPA) estática.</li>
-            <li>Obfuscação de chaves de API do Firebase para conformidade com regras do GitHub Pages.</li>
           </ul>
         </div>
         
@@ -257,4 +327,61 @@ window.showChangelogModal = function() {
     `;
     document.body.appendChild(modal);
   }
+};
+
+// Sobrescrever window.alert global para exibir toast flutuante
+window.alert = function(message) {
+  const toast = document.createElement("div");
+  toast.className = "custom-toast";
+  const isError = message.toLowerCase().includes("erro") || 
+                  message.toLowerCase().includes("negado") || 
+                  message.toLowerCase().includes("falha") || 
+                  message.toLowerCase().includes("recusado") || 
+                  message.toLowerCase().includes("atenção");
+                  
+  if (isError) {
+    toast.style.borderLeftColor = "var(--danger-color)";
+    toast.innerHTML = `❌ <span style="font-weight: 600;">${message}</span>`;
+  } else {
+    toast.innerHTML = `✅ <span style="font-weight: 600;">${message}</span>`;
+  }
+  
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.transition = "all 0.5s ease";
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(10px)";
+    setTimeout(() => toast.remove(), 500);
+  }, 3500);
+};
+
+// Sobrescrever window.confirm global para retornar um modal baseado em Promise
+window.customConfirm = function(message) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "custom-modal-overlay";
+    overlay.innerHTML = `
+      <div class="custom-modal-card">
+        <h3 style="margin-bottom: 12px; font-weight: 800; color: #fff;">Confirmação</h3>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.5;">${message}</p>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button class="btn btn-ghost" id="confirm-btn-cancel" style="flex-grow: 1; padding: 10px;">Cancelar</button>
+          <button class="btn" id="confirm-btn-ok" style="flex-grow: 1; padding: 10px; background-color: var(--accent-color); border-color: var(--accent-color); color: #fff; font-weight: 700;">Confirmar</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(overlay);
+
+    overlay.querySelector("#confirm-btn-ok").addEventListener("click", () => {
+      overlay.remove();
+      resolve(true);
+    });
+
+    overlay.querySelector("#confirm-btn-cancel").addEventListener("click", () => {
+      overlay.remove();
+      resolve(false);
+    });
+  });
 };

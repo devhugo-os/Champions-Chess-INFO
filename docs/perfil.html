@@ -456,7 +456,7 @@
     }
 
     async function cancelRegistration() {
-      if (!confirm("Deseja cancelar sua solicitação de inscrição para participar do torneio?")) return;
+      if (!(await window.customConfirm("Deseja cancelar sua solicitação de inscrição para participar do torneio?"))) return;
       if (!window.auth.currentUser) return;
 
       const uid = window.auth.currentUser.uid;

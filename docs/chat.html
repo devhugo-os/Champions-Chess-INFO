@@ -193,7 +193,7 @@
     }
 
     async function deleteMessage(msgId) {
-      if (!confirm("Deseja apagar essa mensagem do chat?")) return;
+      if (!(await window.customConfirm("Deseja apagar essa mensagem do chat?"))) return;
 
       try {
         await window.rtdb.ref("chat").child(msgId).remove();

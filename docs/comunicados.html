@@ -144,7 +144,7 @@
     }
 
     async function deletePost(postId) {
-      if (!confirm("Tem certeza que deseja excluir este comunicado?")) return;
+      if (!(await window.customConfirm("Tem certeza que deseja excluir este comunicado?"))) return;
 
       try {
         await window.db.collection("posts").doc(postId).delete();
