@@ -141,14 +141,19 @@
         : "Horário a definir";
       
       const stageLabel = m.stage === "groups" ? `Grupo ${m.group}` : m.stage.toUpperCase();
-      const isOnline = m.type !== "presencial";
       
+      // Status de prontidão e escolha do tipo
+      const isReadyA = !!m.readyA;
+      const isReadyB = !!m.readyB;
+      const isGameActive = m.status === "live" || (isReadyA && isReadyB && m.status !== "finished");
+      
+      // Resolvido como online apenas se ambos escolherem online. Caso contrário (ou se for legado), presencial.
+      const isOnline = m.type === "online" || (m.readyA === "online" && m.readyB === "online");
+
       // Status badges e resultados
       let statusHtml = "";
       let resultHtml = "";
       let actionHtml = "";
-
-      const isGameActive = m.status === "live" || (m.readyA && m.readyB && m.status !== "finished");
 
       if (m.status === "finished") {
         statusHtml = `<span class="badge badge-success">Finalizado</span>`;
@@ -184,17 +189,24 @@
           actionHtml = `<div style="background: rgba(88, 166, 255, 0.1); border: 1px solid rgba(88, 166, 255, 0.2); padding: 8px 12px; border-radius: 6px; margin-top: 12px; font-size:12px; font-weight:700; text-align:center; color:#58a6ff;">⚔️ Confronto Físico em Andamento</div>`;
         }
       } else if (currentUser && m.status !== "finished" && m.result !== "postponed") {
-        // Se ainda agendado, exibir botão de prontidão
+        // Se ainda agendado, exibir opções de escolha de tipo
         const isPlayerA = m.aId === currentUser.uid;
         const isPlayerB = m.bId === currentUser.uid;
         
         if (isPlayerA || isPlayerB) {
-          const isAlreadyReady = (isPlayerA && m.readyA) || (isPlayerB && m.readyB);
+          const myReady = isPlayerA ? m.readyA : m.readyB;
+          const isAlreadyReady = !!myReady;
           
           if (isAlreadyReady) {
-            actionHtml = `<button class="btn btn-ghost" disabled style="margin-top:12px; width:100%; cursor: not-allowed;">Aguardando oponente...</button>`;
+            const label = myReady === "online" ? "💻 Online" : "🤝 Presencial";
+            actionHtml = `<button class="btn btn-ghost" disabled style="margin-top:12px; width:100%; cursor: not-allowed;">Pronto (${label}) - Aguardando oponente...</button>`;
           } else {
-            actionHtml = `<button class="btn" onclick="signalReady('${m.id}')" style="margin-top:12px; width:100%;">Estou Pronto</button>`;
+            actionHtml = `
+              <div style="display:flex; gap:8px; margin-top:12px; width:100%;">
+                <button class="btn" onclick="signalReady('${m.id}', 'online')" style="flex:1; padding: 10px; font-size:12px;">💻 Online</button>
+                <button class="btn btn-ghost" onclick="signalReady('${m.id}', 'presencial')" style="flex:1; padding: 10px; font-size:12px; border:1px solid var(--border-color);">🤝 Presencial</button>
+              </div>
+            `;
           }
         }
       }
@@ -202,10 +214,32 @@
       // Preparação de status de prontidão (matchmaking)
       let readyIndicators = "";
       if (m.status !== "finished" && !isGameActive && m.result !== "postponed" && (m.readyA || m.readyB)) {
+        const choiceALabel = m.readyA ? (m.readyA === "online" ? "🟢 Pronto (💻 Online)" : "🟢 Pronto (🤝 Presencial)") : "⚪ Pendente";
+        const choiceBLabel = m.readyB ? (m.readyB === "online" ? "🟢 Pronto (💻 Online)" : "🟢 Pronto (🤝 Presencial)") : "⚪ Pendente";
         readyIndicators = `
-          <div style="font-size:12px; color:var(--text-secondary); margin-top:8px; display:flex; gap:12px;">
-            <span>${playerAName}: ${m.readyA ? '🟢 Pronto' : '⚪ Pendente'}</span>
-            <span>${playerBName}: ${m.readyB ? '🟢 Pronto' : '⚪ Pendente'}</span>
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:8px; display:flex; flex-direction:column; gap:4px;">
+            <span><b>${playerAName}</b>: ${choiceALabel}</span>
+            <span><b>${playerBName}</b>: ${choiceBLabel}</span>
+          </div>
+        `;
+      }
+
+      // Badge de tipo de partida centralizada e decorada
+      let typeBadge = "";
+      if (isGameActive || m.status === "finished") {
+        typeBadge = `
+          <div style="display:flex; justify-content:center; margin: 4px 0 10px 0;">
+            <span class="badge" style="padding: 5px 12px; border-radius: 9999px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:6px; background:${isOnline ? 'rgba(56,139,253,0.1)' : 'rgba(240,178,50,0.1)'}; color:${isOnline ? '#58a6ff' : '#f0b232'}; border:1px solid ${isOnline ? 'rgba(56,139,253,0.2)' : 'rgba(240,178,50,0.2)'}; box-shadow: 0 0 12px ${isOnline ? 'rgba(56,139,253,0.1)' : 'rgba(240,178,50,0.1)'};">
+              ${isOnline ? "💻 Online" : "🤝 Presencial"}
+            </span>
+          </div>
+        `;
+      } else if (m.result !== "postponed") {
+        typeBadge = `
+          <div style="display:flex; justify-content:center; margin: 4px 0 10px 0;">
+            <span class="badge" style="padding: 5px 12px; border-radius: 9999px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; display:flex; align-items:center; gap:6px; background:rgba(255,255,255,0.05); color:var(--text-secondary); border:1px solid var(--border-color);">
+              ⏳ Aguardando Escolha
+            </span>
           </div>
         `;
       }
@@ -222,10 +256,11 @@
             <span class="vs">VS</span>
             <span style="font-size: 15px;">${playerBName}</span>
           </div>
+
+          ${typeBadge}
           
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
             ${statusHtml}
-            <span style="font-size:11px; color:var(--text-muted); font-weight:700;">${isOnline ? "💻 Online" : "🤝 Presencial"}</span>
             ${m.code ? `<span style="font-family:monospace; font-size:11px; color:var(--text-secondary);">CÓD: ${m.code}</span>` : ""}
           </div>
           
@@ -239,7 +274,7 @@
 
     function fetchOnlineResults(list) {
       list.forEach(m => {
-        const isOnline = m.type !== "presencial";
+        const isOnline = m.type === "online" || (m.readyA === "online" && m.readyB === "online");
         if (isOnline && m.status !== "finished") {
           window.rtdb.ref("matches_games/" + m.id).once("value").then((snap) => {
             const gameData = snap.val();
@@ -266,7 +301,7 @@
       });
     }
 
-    async function signalReady(matchId) {
+    async function signalReady(matchId, choice) {
       if (!currentUser) return;
 
       const matchRef = window.db.collection("matches").doc(matchId);
@@ -281,13 +316,13 @@
           const isPlayerB = data.bId === currentUser.uid;
 
           const updates = {};
-          if (isPlayerA) updates.readyA = true;
-          if (isPlayerB) updates.readyB = true;
+          if (isPlayerA) updates.readyA = choice;
+          if (isPlayerB) updates.readyB = choice;
 
           transaction.update(matchRef, updates);
         });
 
-        alert("Seu estado de prontidão foi atualizado com sucesso!");
+        alert("Seu estado de prontidão e escolha foram salvos!");
       } catch (error) {
         console.error("Erro ao atualizar prontidão:", error);
         alert("Erro ao enviar estado de pronto. Tente novamente.");

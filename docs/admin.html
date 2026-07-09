@@ -90,7 +90,7 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-bottom:12px;">
+          <div class="form-group" style="margin-bottom:12px; display:none;">
             <label for="match-type">Tipo de Partida</label>
             <select id="match-type" class="form-control">
               <option value="online">Online (Tabuleiro do Site)</option>
@@ -186,13 +186,14 @@
               <th>Partida</th>
               <th>Etapa</th>
               <th>Código</th>
+              <th>Tipo</th>
               <th>Status</th>
               <th>Resultado</th>
               <th style="width: 100px;">Ação</th>
             </tr>
           </thead>
           <tbody id="matches-list-body">
-            <tr><td colspan="7" style="text-align:center;" class="text-secondary">Carregando confrontos...</td></tr>
+            <tr><td colspan="8" style="text-align:center;" class="text-secondary">Carregando confrontos...</td></tr>
           </tbody>
         </table>
       </div>
@@ -306,6 +307,10 @@
           snapshot.forEach(doc => { players.push({ id: doc.id, ...doc.data() }); });
           renderPlayersList();
           populatePlayersSelects();
+          renderMatchesList();
+        }, error => {
+          console.error("Erro ao carregar jogadores:", error);
+          document.getElementById("players-list-body").innerHTML = `<tr><td colspan="3" style="text-align:center; color:#ef4444; font-weight:700; padding:12px;">Erro: ${error.message}</td></tr>`;
         });
 
         // 2. Carregar partidas
@@ -313,6 +318,9 @@
           matches = [];
           snapshot.forEach(doc => { matches.push({ id: doc.id, ...doc.data() }); });
           renderMatchesList();
+        }, error => {
+          console.error("Erro ao carregar partidas:", error);
+          document.getElementById("matches-list-body").innerHTML = `<tr><td colspan="7" style="text-align:center; color:#ef4444; font-weight:700; padding:12px;">Erro: ${error.message}</td></tr>`;
         });
 
         // 3. Carregar fila de espera
@@ -328,8 +336,8 @@
 
           tbody.innerHTML = waitlist.map(w => `
             <tr>
-              <td><b>${w.name}</b></td>
-              <td>${w.email}</td>
+              <td><b>${w.name || "Sem nome"}</b></td>
+              <td>${w.email || "Sem e-mail"}</td>
               <td>
                 <div style="display:flex; gap:8px;">
                   <button class="btn" style="padding: 6px 12px; font-size:12px;" onclick="approveUser('${w.id}')">Aprovar</button>
@@ -338,6 +346,9 @@
               </td>
             </tr>
           `).join("");
+        }, error => {
+          console.error("Erro ao carregar waitlist:", error);
+          document.getElementById("waitlist-body").innerHTML = `<tr><td colspan="3" style="text-align:center; color:#ef4444; font-weight:700; padding:12px;">Erro: ${error.message}</td></tr>`;
         });
 
       } catch (error) {
@@ -537,7 +548,7 @@
       players.forEach(p => { playersMap[p.id] = p.name; });
 
       if (matches.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;" class="text-secondary">Sem partidas cadastradas.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;" class="text-secondary">Sem partidas cadastradas.</td></tr>`;
         return;
       }
 
@@ -558,12 +569,15 @@
         else if (m.result === "draw") resultLabel = "Empate";
         else if (m.result === "postponed") resultLabel = "Adiado";
 
+        const isOnline = m.type === "online" || (m.readyA === "online" && m.readyB === "online");
+
         return `
           <tr>
             <td>${dateStr}</td>
             <td><b>${playerAName}</b> × <b>${playerBName}</b></td>
             <td><span class="badge" style="background:rgba(56,139,253,0.08); color:#58a6ff;">${stageStr}</span></td>
             <td><span class="chip" style="padding:4px 8px; font-family:monospace; font-size:11px;">${m.code || '—'}</span></td>
+            <td><span class="badge" style="background:${isOnline ? 'rgba(56,139,253,0.1)' : 'rgba(240,178,50,0.1)'}; color:${isOnline ? '#58a6ff' : '#f0b232'};">${isOnline ? "💻 Online" : "🤝 Presencial"}</span></td>
             <td>${statusBadge}</td>
             <td><b>${resultLabel}</b></td>
             <td>
@@ -853,7 +867,8 @@
       document.getElementById("btn-cancel-edit").style.display = "inline-block";
 
       // Autodetectar resultado do tabuleiro online do site
-      if ((m.type || "online") === "online") {
+      const isOnlineMatch = m.type === "online" || (m.readyA === "online" && m.readyB === "online");
+      if (isOnlineMatch) {
         window.rtdb.ref("matches_games/" + m.id).get().then((snapshot) => {
           const gameData = snapshot.val();
           if (gameData && gameData.status === "finished" && gameData.winner) {

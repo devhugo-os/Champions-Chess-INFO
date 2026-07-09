@@ -167,7 +167,7 @@ function renderNavigation() {
     </div>
     <div class="drawer-footer">
       ${user ? `<button id="btn-mobile-logout" class="btn btn-ghost" style="width:100%; justify-content:center;">Sair da Conta</button>` : ''}
-      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.0</span>
+      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.1</span>
     </div>
   `;
 
@@ -206,10 +206,10 @@ function renderNavigation() {
         background: #0d1117;
         text-align: center;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-        animation: modalFadeIn 0.2s ease-out;
+        animation: modalFadeIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       @keyframes modalFadeIn {
-        from { opacity: 0; transform: scale(0.95); }
+        from { opacity: 0; transform: scale(0.8); }
         to { opacity: 1; transform: scale(1); }
       }
       .custom-toast {
@@ -228,10 +228,10 @@ function renderNavigation() {
         display: flex;
         align-items: center;
         gap: 10px;
-        animation: toastSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        animation: toastSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
       }
       @keyframes toastSlideIn {
-        from { transform: translateY(20px); opacity: 0; }
+        from { transform: translateY(120px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
       }
       @media (max-width: 480px) {
@@ -275,7 +275,7 @@ function renderNavigation() {
       <div style="display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;">
         <span>© Champions Chess INFO</span>
         <button onclick="showChangelogModal()" class="btn btn-ghost" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          📋 Versão v1.6.0 (Histórico de Alterações)
+          📋 Versão v1.6.1 (Histórico de Alterações)
         </button>
       </div>
     `;
@@ -294,7 +294,16 @@ window.showChangelogModal = function() {
         <h2 style="margin-bottom: 20px; font-weight: 800; text-align: center; background: linear-gradient(135deg, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Histórico de Alterações</h2>
         
         <div style="overflow-y: auto; flex-grow: 1; text-align: left; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.0 (Atual)</h4>
+          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.1 (Atual)</h4>
+          <ul style="margin-bottom: 16px; padding-left: 20px;">
+            <li>Controle de Tipo Descentralizado: Escolha de tipo de confronto (Online/Presencial) decidida pelos próprios enxadristas no matchmaking.</li>
+            <li>Correção de Painel de Admin: Solucionada a falha de carregamento infinito do painel ativando listeners apenas após a resolução do Firebase Auth.</li>
+            <li>Melhoria Visual nas Partidas: Centralização e estilização dos badges do tipo de partida com efeito translúcido iluminado.</li>
+            <li>Ajuste de Logo: Redução do diâmetro do logo da navbar para evitar que ela fique desproporcional.</li>
+            <li>Animações Ampliadas: Aumento da escala da animação de entrada de modais e do slide-in de notificações Toast.</li>
+          </ul>
+
+          <h4 style="color: var(--secondary-color); margin-bottom: 4px;">Versão v1.6.0</h4>
           <ul style="margin-bottom: 16px; padding-left: 20px;">
             <li>Sincronização de xadrez híbrida via P2P (WebRTC DataChannel) com fallback via RTDB (WebSockets).</li>
             <li>Responsividade mobile profunda nos tabuleiros, grades de estatísticas e tabelas.</li>

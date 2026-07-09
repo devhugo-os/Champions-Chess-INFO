@@ -359,8 +359,8 @@ body.desktop-mode .desktop-navbar {
   flex-shrink: 0;
 }
 .desktop-navbar .logo-wrapper {
-  width: 68px;
-  height: 68px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: 2px solid var(--border-color);
   overflow: hidden;
@@ -465,8 +465,8 @@ body.mobile-mode .mobile-header {
   cursor: pointer;
 }
 .mobile-header .logo-wrapper {
-  width: 54px;
-  height: 54px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   border: 2px solid var(--border-color);
   overflow: hidden;
@@ -734,10 +734,13 @@ body.mobile-mode .mobile-header {
   flex-direction: column;
   gap: 14px;
   box-shadow: var(--shadow-sm);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .bet-match-card:hover {
-  border-color: var(--border-color-hover);
+  transform: translateY(-4px);
+  border-color: var(--accent-color);
+  box-shadow: 0 8px 30px rgba(16, 185, 129, 0.15);
 }
 
 .bet-match-card .versus {

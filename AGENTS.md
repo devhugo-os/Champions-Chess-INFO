@@ -146,3 +146,12 @@ Como o projeto é estático, você pode simplesmente abrir o arquivo `docs/index
    npm run dev
    ```
 3. Acesse em: `http://localhost:3000` (ou porta gerada no console).
+
+---
+
+## 📜 Regras de Versionamento e Changelog
+
+A cada nova funcionalidade, correção de bug ou refatoração implementada no projeto:
+1. **Atualizar Versão Global**: O desenvolvedor (ou agente de IA) deve obrigatoriamente atualizar a constante de versão do site (ex: `1.6.0`, `1.6.1`, etc.) no validador do `docs/js/firebase-config.js` (variável `CURRENT_VERSION`) e no botão do changelog no rodapé de todas as páginas.
+2. **Atualizar o Registro de Alterações (Changelog)**: Documentar todas as mudanças implementadas no modal de histórico de alterações para manter os usuários orientados e garantir o funcionamento do sistema de atualização forçada do Firebase RTDB.
+
