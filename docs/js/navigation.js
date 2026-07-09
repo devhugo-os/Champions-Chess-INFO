@@ -167,7 +167,7 @@ function renderNavigation() {
     </div>
     <div class="drawer-footer">
       ${user ? `<button id="btn-mobile-logout" class="btn btn-ghost" style="width:100%; justify-content:center;">Sair da Conta</button>` : ''}
-      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.1</span>
+      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.2</span>
     </div>
   `;
 
@@ -275,7 +275,7 @@ function renderNavigation() {
       <div style="display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;">
         <span>© Champions Chess INFO</span>
         <button onclick="showChangelogModal()" class="btn btn-ghost" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          📋 Versão v1.6.1 (Histórico de Alterações)
+          📋 Versão v1.6.2 (Histórico de Alterações)
         </button>
       </div>
     `;
@@ -294,7 +294,16 @@ window.showChangelogModal = function() {
         <h2 style="margin-bottom: 20px; font-weight: 800; text-align: center; background: linear-gradient(135deg, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Histórico de Alterações</h2>
         
         <div style="overflow-y: auto; flex-grow: 1; text-align: left; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.1 (Atual)</h4>
+          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.2 (Atual)</h4>
+          <ul style="margin-bottom: 16px; padding-left: 20px;">
+            <li>Avatares de Enxadristas nas Partidas: Adicionada a exibição das fotos de perfil de cada participante no card do torneio.</li>
+            <li>Link de Gravação / Replay da Partida: Suporte para assistir à partida finalizada. O administrador pode salvar um link externo (YouTube/Lichess) no painel, e se não houver, enxadristas podem clicar em "Replay no Tabuleiro" para ver o tabuleiro virtual do site.</li>
+            <li>Correção de Escopos no Painel: Solucionado o travamento da página de administração fechando adequadamente os blocos de funções.</li>
+            <li>Estabilidade do Debugger: Corrigido o loop recursivo no script de segurança que gerava estouro de pilha (stack overflow) e congelava as conexões.</li>
+            <li>Identificação Limpa de Códigos: Exibição limpa do código da rodada integrado no cabeçalho do card sem quebras de layout.</li>
+          </ul>
+
+          <h4 style="color: var(--secondary-color); margin-bottom: 4px;">Versão v1.6.1</h4>
           <ul style="margin-bottom: 16px; padding-left: 20px;">
             <li>Controle de Tipo Descentralizado: Escolha de tipo de confronto (Online/Presencial) decidida pelos próprios enxadristas no matchmaking.</li>
             <li>Correção de Painel de Admin: Solucionada a falha de carregamento infinito do painel ativando listeners apenas após a resolução do Firebase Auth.</li>

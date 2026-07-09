@@ -76,20 +76,16 @@
     }
   }
 
-  // Truque do Debugger infinito para atrapalhar inspeção caso consigam forçar a abertura
+  // Truque do Debugger para atrapalhar inspeção caso consigam forçar a abertura (sem recursão para evitar stack overflow)
   setInterval(function() {
     if (isUserAdmin()) return;
-    (function() {
-      try {
-        (function a(i) {
-          if (("" + i / i).length !== 1 || i % 20 === 0) {
-            (function() {}).constructor("debugger")();
-          } else {
-            debugger;
-          }
-          a(++i);
-        })(0);
-      } catch (e) {}
-    })();
+    try {
+      (function() {
+        const check = function() {
+          (function() {}).constructor("debugger")();
+        };
+        check();
+      })();
+    } catch (e) {}
   }, 1000);
 })();

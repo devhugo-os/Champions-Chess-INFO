@@ -120,6 +120,11 @@
             </div>
           </div>
 
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="match-recording-url">Link da Partida Gravada (Vídeo / Replay)</label>
+            <input type="url" id="match-recording-url" class="form-control" placeholder="https://youtube.com/... ou https://lichess.org/...">
+          </div>
+
           <div style="display:flex; gap:10px;">
             <button type="submit" id="btn-submit-match" class="btn" style="flex-grow:1;">Salvar Partida</button>
             <button type="button" id="btn-cancel-edit" class="btn btn-ghost" style="display:none;" onclick="cancelMatchEdit()">Cancelar</button>
@@ -646,6 +651,8 @@
       const date = document.getElementById("match-date").value;
       const code = document.getElementById("match-code").value.trim();
       const type = document.getElementById("match-type").value;
+      const recordingUrl = document.getElementById("match-recording-url").value.trim();
+
       if (stage === "groups") {
         const playerA = players.find(p => p.id === aId);
         const playerB = players.find(p => p.id === bId);
@@ -664,6 +671,11 @@
           const matchRef = window.db.collection("matches").doc(id);
           const matchDoc = await matchRef.get();
           const matchData = matchDoc.data();
+
+          // Atualizar dados comuns primeiro (garante que alterações de jogadores/data/código persistam)
+          await matchRef.update({
+            aId, bId, stage, group, date, code, type, recordingUrl
+          });
 
           if (result === "postponed") {
             // Reconciliação (reembolso) de apostas e reset da partida
@@ -704,16 +716,14 @@
             }
             await createAutoPost(postTitle, postBody);
           } else {
-            // Apenas update simples (se já finalizado ou não sendo finalizado)
-            await matchRef.update({
-              aId, bId, stage, group, date, code, status, result, type
-            });
+            // Apenas update do status e resultado (caso já finalizado ou alteração simples de status)
+            await matchRef.update({ status, result });
           }
         } else {
           // Criação
           const newDoc = window.db.collection("matches").doc();
           await newDoc.set({
-            aId, bId, stage, group, date, code, type,
+            aId, bId, stage, group, date, code, type, recordingUrl,
             status: "scheduled",
             result: "",
             readyA: false,
@@ -727,6 +737,8 @@
         console.error("Erro ao salvar partida:", error);
         alert("Erro ao salvar partida: " + error.message);
       }
+    }
+
     async function createAutoPost(title, body) {
       try {
         await window.db.collection("posts").add({
@@ -859,6 +871,7 @@
       document.getElementById("match-status").value = m.status || "scheduled";
       document.getElementById("match-result").value = m.result || "";
       document.getElementById("match-type").value = m.type || "online";
+      document.getElementById("match-recording-url").value = m.recordingUrl || "";
 
       document.getElementById("result-status-area").style.display = "grid";
       
@@ -892,6 +905,7 @@
     function cancelMatchEdit() {
       document.getElementById("match-id").value = "";
       document.getElementById("match-form").reset();
+      document.getElementById("match-recording-url").value = "";
       document.getElementById("match-group-wrapper").style.display = "block";
       document.getElementById("result-status-area").style.display = "none";
       document.getElementById("match-form-title").textContent = "📅 Criar Partida";
