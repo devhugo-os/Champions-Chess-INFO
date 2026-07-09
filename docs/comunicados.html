@@ -66,11 +66,15 @@
         document.getElementById("admin-post-card").style.display = "block";
       }
 
-      // Aguarda a inicialização do Firestore
+      // Aguarda a inicialização do Firebase Auth
       const interval = setInterval(() => {
-        if (window.db) {
+        if (window.auth && window.db) {
           clearInterval(interval);
-          loadPosts();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              loadPosts();
+            }
+          });
         }
       }, 100);
 

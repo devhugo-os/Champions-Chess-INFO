@@ -229,25 +229,52 @@
     let matches = [];
 
     document.addEventListener("DOMContentLoaded", () => {
-      // Ler usuário do localStorage
-      try {
-        const userStr = localStorage.getItem("user");
-        if (userStr) currentUser = JSON.parse(userStr);
-      } catch (e) {}
-
-      // Segurança: Redireciona se não for Admin
-      if (!currentUser || (currentUser.role !== "admin" && !currentUser.isAdmin)) {
-        alert("Acesso negado. Apenas administradores podem acessar esta página.");
-        window.location.href = "perfil.html";
-        return;
-      }
-
-      // Aguarda a inicialização do Firebase
+      // Aguarda a inicialização do Firebase Auth
       const interval = setInterval(() => {
-        if (window.db && window.rtdb) {
+        if (window.auth && window.db && window.rtdb) {
           clearInterval(interval);
-          loadPanelData();
-          autoCleanChatTrigger();
+          
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              // Verificar se é admin no Firestore
+              window.db.collection("admins").doc(user.uid).get().then(adminDoc => {
+                const isAdmin = adminDoc.exists && (adminDoc.data().active === true || adminDoc.data().isAdmin === true);
+                if (isAdmin) {
+                  currentUser = {
+                    uid: user.uid,
+                    name: user.displayName || "Admin",
+                    email: user.email,
+                    role: "admin",
+                    isAdmin: true
+                  };
+                  loadPanelData();
+                  autoCleanChatTrigger();
+                } else {
+                  alert("Acesso negado. Apenas administradores podem acessar esta página.");
+                  window.location.href = "perfil.html";
+                }
+              }).catch(err => {
+                console.error("Erro ao validar administrador:", err);
+                // Fallback para local storage caso de erro de rede
+                try {
+                  const userStr = localStorage.getItem("user");
+                  if (userStr) {
+                    const localUser = JSON.parse(userStr);
+                    if (localUser.role === "admin" || localUser.isAdmin) {
+                      currentUser = localUser;
+                      loadPanelData();
+                      autoCleanChatTrigger();
+                      return;
+                    }
+                  }
+                } catch (e) {}
+                alert("Acesso negado. Apenas administradores podem acessar esta página.");
+                window.location.href = "perfil.html";
+              });
+            } else {
+              window.location.href = "login.html";
+            }
+          });
         }
       }, 100);
 

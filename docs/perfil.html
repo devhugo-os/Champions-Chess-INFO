@@ -113,11 +113,15 @@
       // Configurar upload de imagem
       document.getElementById("avatar-input").addEventListener("change", compressAndUploadAvatar);
 
-      // Aguarda inicialização do Firebase
+      // Aguarda inicialização do Firebase Auth
       const interval = setInterval(() => {
         if (window.db && window.auth) {
           clearInterval(interval);
-          checkSession();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              checkSession();
+            }
+          });
         }
       }, 100);
     });

@@ -84,12 +84,14 @@
   
   <script>
     document.addEventListener("DOMContentLoaded", () => {
-      // O firebase-config.js expõe 'window.db' globalmente.
-      // Aguarda a inicialização do Firestore para carregar os dados.
       const interval = setInterval(() => {
-        if (window.db) {
+        if (window.auth && window.db) {
           clearInterval(interval);
-          loadHomeData();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              loadHomeData();
+            }
+          });
         }
       }, 100);
     });
@@ -106,11 +108,13 @@
 
         // 2. Carregar e ouvir partidas em tempo real (limite de 5 próximas partidas)
         window.db.collection("matches")
-          .where("status", "!=", "finished")
           .onSnapshot(snapshot => {
             const matches = [];
             snapshot.forEach(doc => {
-              matches.push({ id: doc.id, ...doc.data() });
+              const data = doc.data();
+              if (data.status !== "finished") {
+                matches.push({ id: doc.id, ...data });
+              }
             });
 
             // Ordenar por data

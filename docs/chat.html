@@ -73,11 +73,15 @@
         document.getElementById("chat-auth-guard").style.display = "block";
       }
 
-      // Aguarda a inicialização do Firebase
+      // Aguarda a inicialização do Firebase Auth
       const interval = setInterval(() => {
-        if (window.rtdb) {
+        if (window.auth && window.rtdb) {
           clearInterval(interval);
-          setupChat();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              setupChat();
+            }
+          });
         }
       }, 100);
 

@@ -78,9 +78,13 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const interval = setInterval(() => {
-        if (window.db) {
+        if (window.auth && window.db) {
           clearInterval(interval);
-          loadStandings();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              loadStandings();
+            }
+          });
         }
       }, 100);
     });

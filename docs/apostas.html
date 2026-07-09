@@ -211,11 +211,15 @@
         return;
       }
 
-      // Aguarda a inicialização do Firebase
+      // Aguarda a inicialização do Firebase Auth
       const interval = setInterval(() => {
-        if (window.db && window.rtdb) {
+        if (window.auth && window.db && window.rtdb) {
           clearInterval(interval);
-          initApostas();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              initApostas();
+            }
+          });
         }
       }, 100);
 

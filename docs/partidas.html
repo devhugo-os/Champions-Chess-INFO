@@ -64,11 +64,15 @@
         if (userStr) currentUser = JSON.parse(userStr);
       } catch (e) {}
 
-      // Aguarda a inicialização do Firestore
+      // Aguarda a inicialização do Firebase Auth
       const interval = setInterval(() => {
-        if (window.db) {
+        if (window.auth && window.db) {
           clearInterval(interval);
-          initPartidas();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              initPartidas();
+            }
+          });
         }
       }, 100);
 
