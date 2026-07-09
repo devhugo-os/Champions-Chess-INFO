@@ -143,9 +143,12 @@
 
       container.innerHTML = groupPlayers.map(p => {
         const initials = p.name.trim().split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+        const avatarHtml = p.avatarBase64 
+          ? `<img src="${p.avatarBase64}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;" />`
+          : initials;
         return `
           <div class="player-card" id="p-card-${p.id}" onclick="showPlayerDetails('${p.id}')">
-            <div class="player-avatar">${initials}</div>
+            <div class="player-avatar" style="padding: 0; overflow: hidden;">${avatarHtml}</div>
             <div style="font-weight:700; font-size:13px; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${p.name}</div>
           </div>
         `;
@@ -225,10 +228,14 @@
         `;
       }).join("");
 
+      const largeAvatarHtml = player.avatarBase64 
+        ? `<img src="${player.avatarBase64}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block;" />`
+        : player.name.trim().split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+
       detailsContainer.innerHTML = `
         <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px;">
-          <div class="avatar-large" style="width:64px; height:64px; font-size:20px; display:flex; align-items:center; justify-content:center; background:var(--bg-secondary); border: 2px solid var(--accent-color); border-radius:50%; font-weight:800; color:var(--accent-color);">
-            ${player.name.trim().split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase()}
+          <div class="avatar-large" style="width:64px; height:64px; font-size:20px; display:flex; align-items:center; justify-content:center; background:var(--bg-secondary); border: 2px solid var(--accent-color); border-radius:50%; font-weight:800; color:var(--accent-color); padding:0; overflow:hidden;">
+            ${largeAvatarHtml}
           </div>
           <div>
             <h3 style="margin-bottom:4px;">${player.name}</h3>

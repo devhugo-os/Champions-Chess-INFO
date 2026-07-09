@@ -142,15 +142,18 @@
       let resultHtml = "";
       let actionHtml = "";
 
+      const isGameActive = m.status === "live" || (m.readyA && m.readyB && m.status !== "finished");
+
       if (m.status === "finished") {
         statusHtml = `<span class="badge badge-success">Finalizado</span>`;
-        let winnerText = "Empate";
-        if (m.result === "A") winnerText = `Vitória: ${playerAName}`;
-        else if (m.result === "B") winnerText = `Vitória: ${playerBName}`;
+        let winnerText = "";
+        if (m.result === "draw") winnerText = "Empate";
+        else if (m.result === "A") winnerText = `Vitória de ${playerAName}`;
+        else if (m.result === "B") winnerText = `Vitória de ${playerBName}`;
         resultHtml = `<div style="font-weight:700; color:var(--accent-color); margin-top:8px;">${winnerText}</div>`;
-      } else if (m.status === "live") {
+      } else if (isGameActive) {
         statusHtml = `<span class="badge badge-danger" style="animation: pulse 1.5s infinite; background:#ef4444; color:#fff;">AO VIVO</span>`;
-        resultHtml = `<div style="font-weight:700; color:var(--danger-color); margin-top:8px; font-size: 13px;">Partida em andamento. Jogadores em campo!</div>`;
+        resultHtml = `<div style="font-weight:700; color:var(--danger-color); margin-top:8px; font-size: 13px;">Partida em andamento no tabuleiro do site!</div>`;
       } else if (m.result === "postponed") {
         statusHtml = `<span class="badge badge-warning">Adiado</span>`;
         resultHtml = `<div style="color:var(--warning-color); margin-top:4px; font-size:12px;">Confronto remarcado pela organização.</div>`;
@@ -158,16 +161,24 @@
         statusHtml = `<span class="badge badge-info">Agendado</span>`;
       }
 
-      // Se logado e for jogador da partida, mostrar botão pronto
-      if (currentUser && m.status !== "finished" && m.status !== "live" && m.result !== "postponed") {
+      // Se logado e em andamento, exibir botão de entrar
+      if (isGameActive) {
+        const isPlayer = currentUser && (m.aId === currentUser.uid || m.bId === currentUser.uid);
+        if (isPlayer) {
+          actionHtml = `<a href="jogo.html?matchId=${m.id}" class="btn" style="margin-top:12px; width:100%; display:block; text-align:center; text-decoration:none; background-color: var(--accent-color); color:#fff; font-weight:800; border-color: var(--accent-color);">🎮 Jogar Online</a>`;
+        } else {
+          actionHtml = `<a href="jogo.html?matchId=${m.id}" class="btn btn-ghost" style="margin-top:12px; width:100%; display:block; text-align:center; text-decoration:none;">👁 Assistir Partida</a>`;
+        }
+      } else if (currentUser && m.status !== "finished" && m.result !== "postponed") {
+        // Se ainda agendado, exibir botão de prontidão
         const isPlayerA = m.aId === currentUser.uid;
         const isPlayerB = m.bId === currentUser.uid;
         
         if (isPlayerA || isPlayerB) {
-          const isAlreadyReady = (isPlayerA && m.aReady) || (isPlayerB && m.bReady);
+          const isAlreadyReady = (isPlayerA && m.readyA) || (isPlayerB && m.readyB);
           
           if (isAlreadyReady) {
-            actionHtml = `<button class="btn btn-ghost" disabled style="margin-top:12px; width:100%;">Aguardando oponente...</button>`;
+            actionHtml = `<button class="btn btn-ghost" disabled style="margin-top:12px; width:100%; cursor: not-allowed;">Aguardando oponente...</button>`;
           } else {
             actionHtml = `<button class="btn" onclick="signalReady('${m.id}')" style="margin-top:12px; width:100%;">Estou Pronto</button>`;
           }
@@ -176,11 +187,11 @@
 
       // Preparação de status de prontidão (matchmaking)
       let readyIndicators = "";
-      if (m.status !== "finished" && m.status !== "live" && m.result !== "postponed" && (m.aReady || m.bReady)) {
+      if (m.status !== "finished" && !isGameActive && m.result !== "postponed" && (m.readyA || m.readyB)) {
         readyIndicators = `
           <div style="font-size:12px; color:var(--text-secondary); margin-top:8px; display:flex; gap:12px;">
-            <span>${playerAName}: ${m.aReady ? '🟢 Pronto' : '⚪ Pendente'}</span>
-            <span>${playerBName}: ${m.bReady ? '🟢 Pronto' : '⚪ Pendente'}</span>
+            <span>${playerAName}: ${m.readyA ? '🟢 Pronto' : '⚪ Pendente'}</span>
+            <span>${playerBName}: ${m.readyB ? '🟢 Pronto' : '⚪ Pendente'}</span>
           </div>
         `;
       }
@@ -225,16 +236,8 @@
           const isPlayerB = data.bId === currentUser.uid;
 
           const updates = {};
-          if (isPlayerA) updates.aReady = true;
-          if (isPlayerB) updates.bReady = true;
-
-          // Se após essa atualização ambos estiverem prontos, colocar AO VIVO
-          const aReady = isPlayerA ? true : !!data.aReady;
-          const bReady = isPlayerB ? true : !!data.bReady;
-
-          if (aReady && bReady) {
-            updates.status = "live";
-          }
+          if (isPlayerA) updates.readyA = true;
+          if (isPlayerB) updates.readyB = true;
 
           transaction.update(matchRef, updates);
         });

@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tabuleiro de Xadrez - Champions Chess INFO</title>
+  <link rel="icon" type="image/png" href="FavIcon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <!-- Chessboard.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+  
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .chess-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+      margin-top: 20px;
+    }
+    @media (max-width: 900px) {
+      .chess-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    #myBoard {
+      width: 100%;
+      max-width: 500px;
+      margin: 0 auto;
+      border: 4px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    .game-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .players-box {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: rgba(22, 30, 41, 0.4);
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+    }
+    .player-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .player-row.active-turn {
+      border-left: 3px solid var(--accent-color);
+      padding-left: 8px;
+    }
+    .player-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--border-color);
+      object-fit: cover;
+    }
+    .moves-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      height: 180px;
+      overflow-y: auto;
+      font-family: monospace;
+      font-size: 13px;
+    }
+    .game-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .turn-indicator {
+      text-align: center;
+      padding: 10px;
+      font-weight: 800;
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+    }
+    .turn-w {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+    .turn-b {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-color);
+    }
+  </style>
+</head>
+<body>
+
+  <main class="container">
+    <div id="loading-overlay" style="padding: 60px; text-align: center; color: var(--text-secondary);">
+      <h2>Carregando partida...</h2>
+    </div>
+
+    <div id="game-container" class="chess-grid" style="display: none;">
+      <!-- Tabuleiro -->
+      <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px;">
+        <div id="myBoard"></div>
+      </div>
+
+      <!-- Lateral -->
+      <div class="game-sidebar">
+        <!-- Indicador de Turno -->
+        <div id="game-turn-banner" class="turn-indicator turn-w">
+          AGUARDANDO CONEXÃO
+        </div>
+
+        <!-- Jogadores -->
+        <div class="players-box">
+          <div class="player-row" id="player-white-row">
+            <img class="player-avatar" id="avatar-white" src="https://lh3.googleusercontent.com/a/default-user=s96-c" alt="Avatar"/>
+            <div>
+              <div style="font-weight: 800; font-size: 14px;" id="name-white">Brancas</div>
+              <div style="font-size: 11px; color: var(--text-secondary);">Jogador A</div>
+            </div>
+          </div>
+          <div style="text-align: center; font-size: 12px; color: var(--text-muted); font-weight: 700; margin: 4px 0;">VS</div>
+          <div class="player-row" id="player-black-row">
+            <img class="player-avatar" id="avatar-black" src="https://lh3.googleusercontent.com/a/default-user=s96-c" alt="Avatar"/>
+            <div>
+              <div style="font-weight: 800; font-size: 14px;" id="name-black">Pretas</div>
+              <div style="font-size: 11px; color: var(--text-secondary);">Jogador B</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Histórico de Jogadas -->
+        <div class="card" style="padding: 16px;">
+          <h3 style="font-size: 14px; margin-bottom: 8px;">📋 Histórico de Jogadas</h3>
+          <div class="moves-container" id="pgn-moves">
+            Sem lances realizados.
+          </div>
+        </div>
+
+        <!-- Ações do Competidor -->
+        <div class="game-controls" id="player-game-actions" style="display: none;">
+          <button class="btn btn-ghost" onclick="proposeDraw()" style="padding: 12px;">🤝 Propor Empate</button>
+          <button class="btn btn-danger" onclick="resignGame()" style="padding: 12px; background-color: var(--danger-color); color: #fff; border-color: var(--danger-color);">🏳️ Desistir</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <span>© Champions Chess INFO</span>
+  </footer>
+
+  <!-- Firebase CDNs Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/security.js"></script>
+
+  <!-- jQuery, Chessboard.js, Chess.js CDNs -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+
+  <script>
+    let currentUser = null;
+    let matchId = null;
+    let matchData = null;
+    let gameRef = null;
+    let board = null;
+    let game = new Chess();
+    let playerColor = null; // 'w' (Brancas/Jogador A) ou 'b' (Pretas/Jogador B) ou null (Espectador)
+
+    document.addEventListener("DOMContentLoaded", () => {
+      // Obter ID da partida
+      const params = new URLSearchParams(window.location.search);
+      matchId = params.get("matchId");
+
+      if (!matchId) {
+        alert("ID de partida inválido.");
+        window.location.href = "partidas.html";
+        return;
+      }
+
+      // Obter usuário local
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) currentUser = JSON.parse(userStr);
+      } catch (e) {}
+
+      // Aguardar inicialização do banco
+      const interval = setInterval(() => {
+        if (window.db && window.rtdb) {
+          clearInterval(interval);
+          initGameSession();
+        }
+      }, 100);
+    });
+
+    async function initGameSession() {
+      try {
+        // 1. Carregar dados da partida no Firestore
+        const matchDoc = await window.db.collection("matches").doc(matchId).get();
+        if (!matchDoc.exists) {
+          alert("Confronto não encontrado.");
+          window.location.href = "partidas.html";
+          return;
+        }
+
+        matchData = matchDoc.data();
+
+        // Buscar detalhes do jogador A e B
+        const [playerASnap, playerBSnap] = await Promise.all([
+          window.db.collection("users").doc(matchData.aId).get(),
+          window.db.collection("users").doc(matchData.bId).get()
+        ]);
+
+        const playerA = playerASnap.data();
+        const playerB = playerBSnap.data();
+
+        // Atualizar painéis
+        if (playerA) {
+          document.getElementById("name-white").textContent = playerA.name || "Jogador A";
+          if (playerA.avatarBase64) document.getElementById("avatar-white").src = playerA.avatarBase64;
+        }
+        if (playerB) {
+          document.getElementById("name-black").textContent = playerB.name || "Jogador B";
+          if (playerB.avatarBase64) document.getElementById("avatar-black").src = playerB.avatarBase64;
+        }
+
+        // Definir a cor do jogador atual
+        if (currentUser) {
+          if (currentUser.uid === matchData.aId) {
+            playerColor = 'w';
+          } else if (currentUser.uid === matchData.bId) {
+            playerColor = 'b';
+          }
+        }
+
+        // Mostrar controles de ação apenas se for jogador ativo
+        if (playerColor) {
+          document.getElementById("player-game-actions").style.display = "grid";
+        }
+
+        // Ocultar overlay de carregamento
+        document.getElementById("loading-overlay").style.display = "none";
+        document.getElementById("game-container").style.display = "grid";
+
+        // Sincronizar no RTDB
+        gameRef = window.rtdb.ref("matches_games/" + matchId);
+        
+        // Se não existir, o jogador A inicializa
+        const gameSnap = await gameRef.get();
+        if (!gameSnap.exists()) {
+          if (playerColor === 'w') {
+            await gameRef.set({
+              fen: "start",
+              turn: "w",
+              status: "playing",
+              winner: "",
+              history: []
+            });
+          } else {
+            document.getElementById("game-turn-banner").textContent = "AGUARDANDO O INÍCIO PELA BRANCA...";
+          }
+        }
+
+        // Inicializar o tabuleiro com Chessboard.js
+        const config = {
+          draggable: (playerColor !== null),
+          position: 'start',
+          orientation: (playerColor === 'b') ? 'black' : 'white',
+          onDragStart: onDragStart,
+          onDrop: onDrop,
+          onSnapEnd: onSnapEnd,
+          pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png'
+        };
+        board = Chessboard('myBoard', config);
+
+        // Ouvir alterações do jogo no RTDB
+        gameRef.on("value", (snapshot) => {
+          const data = snapshot.val();
+          if (!data) return;
+
+          if (data.fen === "start") {
+            game.reset();
+          } else {
+            game.load(data.fen);
+          }
+
+          board.position(game.fen());
+          updateGameStatusUI(data);
+        });
+
+      } catch (error) {
+        console.error("Erro ao iniciar sessão do tabuleiro:", error);
+        alert("Erro de conexão com o servidor de xadrez.");
+      }
+    }
+
+    function onDragStart(source, piece, position, orientation) {
+      if (game.game_over()) return false;
+      if (!playerColor) return false;
+      if (game.turn() !== playerColor) return false;
+      if ((playerColor === 'w' && piece.search(/^b/) !== -1) ||
+          (playerColor === 'b' && piece.search(/^w/) !== -1)) {
+        return false;
+      }
+    }
+
+    async function onDrop(source, target) {
+      let move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q'
+      });
+
+      if (move === null) return 'snapback';
+
+      const newHistory = game.history();
+      await gameRef.update({
+        fen: game.fen(),
+        turn: game.turn(),
+        history: newHistory
+      });
+
+      checkAndHandleGameOver();
+    }
+
+    function onSnapEnd() {
+      board.position(game.fen());
+    }
+
+    function updateGameStatusUI(gameData) {
+      const banner = document.getElementById("game-turn-banner");
+      const whiteRow = document.getElementById("player-white-row");
+      const blackRow = document.getElementById("player-black-row");
+      const movesContainer = document.getElementById("pgn-moves");
+
+      whiteRow.classList.remove("active-turn");
+      blackRow.classList.remove("active-turn");
+
+      if (gameData.status === "finished") {
+        banner.className = "turn-indicator turn-w";
+        let winnerText = "FIM DE JOGO";
+        if (gameData.winner === "draw") {
+          winnerText = "EMPATE";
+        } else if (gameData.winner === "w") {
+          winnerText = `VITÓRIA DE: ${document.getElementById("name-white").textContent}`;
+        } else if (gameData.winner === "b") {
+          winnerText = `VITÓRIA DE: ${document.getElementById("name-black").textContent}`;
+        }
+        banner.textContent = winnerText;
+        banner.style.backgroundColor = "var(--border-color)";
+        banner.style.color = "#fff";
+        return;
+      }
+
+      if (game.turn() === 'w') {
+        banner.className = "turn-indicator turn-w";
+        banner.textContent = `VEZ DE: BRANCAS`;
+        banner.style.backgroundColor = "rgba(255,255,255,0.08)";
+        banner.style.color = "#fff";
+        whiteRow.classList.add("active-turn");
+      } else {
+        banner.className = "turn-indicator turn-b";
+        banner.textContent = `VEZ DE: PRETAS`;
+        banner.style.backgroundColor = "rgba(16, 185, 129, 0.15)";
+        banner.style.color = "var(--accent-color)";
+        blackRow.classList.add("active-turn");
+      }
+
+      if (gameData.history && gameData.history.length > 0) {
+        let pgnHtml = "";
+        for (let i = 0; i < gameData.history.length; i += 2) {
+          const moveNum = Math.floor(i / 2) + 1;
+          const wMove = gameData.history[i];
+          const bMove = gameData.history[i + 1] || "";
+          pgnHtml += `<div><b>${moveNum}.</b> ${wMove} ${bMove}</div>`;
+        }
+        movesContainer.innerHTML = pgnHtml;
+        movesContainer.scrollTop = movesContainer.scrollHeight;
+      } else {
+        movesContainer.innerHTML = "Aguardando primeiro lance...";
+      }
+    }
+
+    async function checkAndHandleGameOver() {
+      let status = "playing";
+      let winner = "";
+
+      if (game.in_checkmate()) {
+        status = "finished";
+        winner = (game.turn() === 'w') ? 'b' : 'w';
+      } else if (game.in_draw() || game.in_stalemate() || game.in_threefold_repetition()) {
+        status = "finished";
+        winner = "draw";
+      }
+
+      if (status === "finished") {
+        await gameRef.update({ status, winner });
+      }
+    }
+
+    async function resignGame() {
+      if (!confirm("Tem certeza de que deseja desistir da partida?")) return;
+      
+      const loserColor = playerColor;
+      const winner = (loserColor === 'w') ? 'b' : 'w';
+
+      await gameRef.update({
+        status: "finished",
+        winner: winner
+      });
+      alert("Você desistiu da partida.");
+    }
+
+    async function proposeDraw() {
+      if (!confirm("Deseja propor empate para o oponente? Caso ele aceite, a partida será declarada empatada.")) return;
+      
+      await gameRef.update({
+        drawOfferBy: playerColor
+      });
+
+      alert("Proposta de empate enviada. Aguardando decisão do oponente.");
+
+      gameRef.child("drawOfferResponse").on("value", async (snap) => {
+        const resp = snap.val();
+        if (resp === "accepted") {
+          gameRef.child("drawOfferResponse").off();
+          alert("O oponente aceitou o empate!");
+        } else if (resp === "rejected") {
+          gameRef.child("drawOfferResponse").off();
+          alert("O oponente recusou o empate.");
+          await gameRef.child("drawOfferResponse").remove();
+          await gameRef.child("drawOfferBy").remove();
+        }
+      });
+    }
+
+    // Ouvinte para propostas de empate
+    window.setInterval(() => {
+      if (!gameRef || !playerColor) return;
+
+      gameRef.get().then(async (snap) => {
+        const data = snap.val();
+        if (data && data.drawOfferBy && data.drawOfferBy !== playerColor && !data.drawOfferResponse) {
+          if (confirm("O oponente propôs um empate. Deseja aceitar?")) {
+            await gameRef.update({
+              drawOfferResponse: "accepted",
+              status: "finished",
+              winner: "draw"
+            });
+          } else {
+            await gameRef.update({
+              drawOfferResponse: "rejected"
+            });
+          }
+        }
+      });
+    }, 3000);
+  </script>
+</body>
+</html>

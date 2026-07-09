@@ -12,21 +12,46 @@
 <body>
 
   <main class="container">
-    <div class="grid-2">
-      <!-- Carteira -->
-      <div class="card">
-        <h2>💰 Sua Carteira</h2>
-        <div style="font-size: 28px; font-weight: 800; color: var(--accent-color); margin-bottom: 8px;">
-          <span id="wallet-balance">0</span> CCIP
+    <!-- Grade de Estatísticas no Topo -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <!-- Saldo -->
+      <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 0;">
+        <div style="font-size: 28px;">💰</div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.5px;">Saldo Atual</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--accent-color);"><span id="wallet-balance">0</span> CCIP</div>
         </div>
-        <p style="font-size: 13px; color: var(--text-secondary);">
-          Cada aposta custa exatamente <b>2 CCIP</b>. Ganhos são calculados baseados nas probabilidades do confronto. Você ganha +6 CCIP semanalmente se entrar no site.
-        </p>
       </div>
+      <!-- Total Palpites -->
+      <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 0;">
+        <div style="font-size: 28px;">📝</div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.5px;">Palpites Registrados</div>
+          <div style="font-size: 20px; font-weight: 800;" id="stat-total-bets">0</div>
+        </div>
+      </div>
+      <!-- Acertos -->
+      <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 0;">
+        <div style="font-size: 28px;">✅</div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.5px;">Acertos</div>
+          <div style="font-size: 20px; font-weight: 800; color: var(--accent-color);" id="stat-correct-bets">0</div>
+        </div>
+      </div>
+      <!-- Taxa -->
+      <div class="card" style="padding: 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 0;">
+        <div style="font-size: 28px;">🎯</div>
+        <div>
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary); font-weight: 700; letter-spacing: 0.5px;">Taxa de Acerto</div>
+          <div style="font-size: 20px; font-weight: 800; color: #58a6ff;" id="stat-win-rate">0%</div>
+        </div>
+      </div>
+    </div>
 
+    <div class="grid-2">
       <!-- Fazer Aposta -->
       <div class="card">
-        <h2>🎲 Nova Aposta</h2>
+        <h2>🎲 Novo Palpite</h2>
         <form id="bet-form">
           <div class="form-group">
             <label for="bet-match">Partida Disponível</label>
@@ -56,6 +81,18 @@
 
           <button type="submit" id="btn-submit-bet" class="btn" style="width: 100%;" disabled>Registrar Palpite</button>
         </form>
+      </div>
+
+      <!-- Regras e Funcionamento -->
+      <div class="card" style="display:flex; flex-direction:column; justify-content:center;">
+        <h2>ℹ️ Regras & Funcionamento</h2>
+        <ul style="padding-left: 20px; font-size: 13.5px; line-height: 1.9; color: var(--text-secondary); margin: 0;">
+          <li>Cada palpite requer um custo de exatamente <b>2 CCIP</b>.</li>
+          <li>Os retornos são calculados baseados nas probabilidades do confronto (odds dinâmicas).</li>
+          <li>Se o confronto for <b>Adiado</b>, seus 2 CCIP são automaticamente reembolsados.</li>
+          <li>Você ganha uma recompensa semanal de <b>+6 CCIP</b> ao se manter ativo.</li>
+          <li>Você possui uma janela de tolerância de <b>5 segundos</b> para desfazer um palpite incorreto se mudar de ideia.</li>
+        </ul>
       </div>
     </div>
 
@@ -271,6 +308,18 @@
 
     function renderMyBets() {
       const tbody = document.getElementById("my-bets-body");
+
+      // Calcular estatísticas de palpites do usuário
+      const totalBets = myBetsList.length;
+      const correctBets = myBetsList.filter(b => b.status === "ganhou").length;
+      const wrongBets = myBetsList.filter(b => b.status === "perdeu").length;
+      const resolvedBetsCount = correctBets + wrongBets;
+      const winRate = resolvedBetsCount > 0 ? ((correctBets / resolvedBetsCount) * 100).toFixed(0) + "%" : "0%";
+
+      document.getElementById("stat-total-bets").textContent = totalBets;
+      document.getElementById("stat-correct-bets").textContent = correctBets;
+      document.getElementById("stat-win-rate").textContent = winRate;
+
       if (myBetsList.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;" class="text-secondary">Você ainda não registrou palpites.</td></tr>`;
         return;

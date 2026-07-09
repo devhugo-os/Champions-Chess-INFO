@@ -86,8 +86,8 @@
             </div>
             
             <div class="form-group">
-              <label for="match-code">Código Partida</label>
-              <input type="text" id="match-code" class="form-control" placeholder="Ex: SF1-INFO">
+              <label for="match-code">Código Partida (Gerado Automaticamente)</label>
+              <input type="text" id="match-code" class="form-control" readonly placeholder="Código automático" style="background-color: var(--bg-secondary); color: var(--text-muted); cursor: not-allowed;">
             </div>
           </div>
 
@@ -122,12 +122,12 @@
 
       <!-- 3. Gerenciar Jogadores (CRUD) -->
       <div class="card">
-        <h2>👥 Adicionar / Editar Jogador</h2>
-        <form id="player-form" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px;">
+        <h2>👥 Editar Jogador</h2>
+        <form id="player-form" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; display: none;">
           <input type="hidden" id="player-id">
           <div class="form-group">
             <label for="player-name">Nome do Jogador</label>
-            <input type="text" id="player-name" class="form-control" placeholder="Nome Completo" required>
+            <input type="text" id="player-name" class="form-control" readonly style="background-color: var(--bg-secondary); color: var(--text-muted); cursor: not-allowed;">
           </div>
           <div class="form-group">
             <label for="player-group">Grupo</label>
@@ -137,12 +137,20 @@
             </select>
           </div>
           <div style="display:flex; gap:10px;">
-            <button type="submit" id="btn-submit-player" class="btn" style="flex-grow:1;">Salvar Jogador</button>
-            <button type="button" id="btn-cancel-player-edit" class="btn btn-ghost" style="display:none;" onclick="cancelPlayerEdit()">Cancelar</button>
+            <button type="submit" id="btn-submit-player" class="btn" style="flex-grow:1;">Salvar Alterações</button>
+            <button type="button" id="btn-cancel-player-edit" class="btn btn-ghost" onclick="cancelPlayerEdit()">Cancelar</button>
           </div>
         </form>
+        <p id="player-form-placeholder" style="margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 20px; color: var(--text-secondary); text-align: center;">
+          Selecione um jogador na lista abaixo para editar o seu grupo.
+        </p>
 
-        <h2>📋 Lista de Jogadores Ativos</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <h2 style="margin: 0;">📋 Lista de Jogadores Ativos</h2>
+          <button class="btn" onclick="randomizeGroups()" style="padding: 8px 16px; font-size: 12px; font-weight: 800; background-color: rgba(16, 185, 129, 0.08); border: 1px solid var(--accent-color); color: var(--text-primary);">
+            🎲 Aleatorizar Grupos
+          </button>
+        </div>
         <div class="table-responsive" style="max-height: 250px; overflow-y:auto;">
           <table>
             <thead>
@@ -239,6 +247,10 @@
       // Submit do form de partidas
       document.getElementById("match-form").addEventListener("submit", saveMatch);
 
+      // Geração automática de código de partida
+      document.getElementById("match-stage").addEventListener("change", autoGenerateMatchCode);
+      document.getElementById("match-group").addEventListener("change", autoGenerateMatchCode);
+
       // Submit do form de jogadores
       document.getElementById("player-form").addEventListener("submit", savePlayer);
     });
@@ -305,12 +317,14 @@
       try {
         const userDoc = await userRef.get();
         if (!userDoc.exists) throw new Error("Usuário não cadastrado.");
-        const userName = userDoc.data().displayName || userDoc.data().name;
+        const userName = userDoc.data().name || userDoc.data().displayName || "Jogador";
+        const avatarBase64 = userDoc.data().avatarBase64 || "https://lh3.googleusercontent.com/a/default-user=s96-c";
 
         await window.db.runTransaction(async (transaction) => {
           // 1. Criar jogador
           transaction.set(playerRef, {
             name: userName,
+            avatarBase64: avatarBase64,
             group: group,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
@@ -397,23 +411,18 @@
       const name = document.getElementById("player-name").value.trim();
       const group = document.getElementById("player-group").value;
 
+      if (!id) {
+        alert("Operação inválida. Apenas edição permitida.");
+        return;
+      }
+
       try {
-        if (id) {
-          // Atualizar
-          await window.db.collection("players").doc(id).update({ name, group });
-          // Sincroniza se o usuário tiver perfil correspondente
-          await window.db.collection("users").doc(id).update({ displayName: name, name, group }).catch(() => {});
-        } else {
-          // Criar
-          const newDoc = window.db.collection("players").doc();
-          await newDoc.set({
-            name,
-            group,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-        }
+        // Atualizar
+        await window.db.collection("players").doc(id).update({ name, group });
+        // Sincroniza se o usuário tiver perfil correspondente
+        await window.db.collection("users").doc(id).update({ name, group }).catch(() => {});
         cancelPlayerEdit();
-        alert("Jogador salvo!");
+        alert("Jogador atualizado com sucesso!");
       } catch (error) {
         console.error("Erro ao salvar jogador:", error);
         alert("Erro ao salvar jogador.");
@@ -425,15 +434,15 @@
       document.getElementById("player-name").value = name;
       document.getElementById("player-group").value = group;
       
-      document.getElementById("btn-submit-player").textContent = "Atualizar Jogador";
-      document.getElementById("btn-cancel-player-edit").style.display = "inline-block";
+      document.getElementById("player-form").style.display = "block";
+      document.getElementById("player-form-placeholder").style.display = "none";
     }
 
     function cancelPlayerEdit() {
       document.getElementById("player-id").value = "";
       document.getElementById("player-form").reset();
-      document.getElementById("btn-submit-player").textContent = "Salvar Jogador";
-      document.getElementById("btn-cancel-player-edit").style.display = "none";
+      document.getElementById("player-form").style.display = "none";
+      document.getElementById("player-form-placeholder").style.display = "block";
     }
 
     async function deletePlayer(id) {
@@ -446,6 +455,41 @@
       } catch (error) {
         console.error("Erro ao excluir jogador:", error);
         alert("Erro ao excluir.");
+      }
+    }
+
+    async function randomizeGroups() {
+      if (players.length === 0) {
+        alert("Nenhum jogador ativo para aleatorizar.");
+        return;
+      }
+      if (!confirm("Deseja realmente aleatorizar os grupos? Isso dividirá todos os jogadores atuais igualmente entre Grupo A e Grupo B.")) {
+        return;
+      }
+
+      const list = [...players];
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [list[i], list[j]] = [list[j], list[i]];
+      }
+
+      const batch = window.db.batch();
+
+      list.forEach((p, index) => {
+        const group = (index < list.length / 2) ? "A" : "B";
+        const playerRef = window.db.collection("players").doc(p.id);
+        const userRef = window.db.collection("users").doc(p.id);
+
+        batch.update(playerRef, { group });
+        batch.update(userRef, { group });
+      });
+
+      try {
+        await batch.commit();
+        alert("Grupos aleatorizados com sucesso!");
+      } catch (error) {
+        console.error("Erro ao aleatorizar grupos:", error);
+        alert("Erro ao aleatorizar grupos no banco de dados.");
       }
     }
 
@@ -494,6 +538,50 @@
           </tr>
         `;
       }).join("");
+    }
+
+    async function autoGenerateMatchCode() {
+      const id = document.getElementById("match-id").value;
+      // Se for edição, não sobrescrevemos o código de forma automática para evitar quebras
+      if (id) return;
+
+      const stage = document.getElementById("match-stage").value;
+      const group = document.getElementById("match-group").value;
+      const codeInput = document.getElementById("match-code");
+
+      if (!stage) {
+        codeInput.value = "";
+        return;
+      }
+
+      let prefix = "";
+      if (stage === "groups") {
+        prefix = `GP-${group || "A"}-`;
+      } else if (stage === "semifinal") {
+        prefix = "SF-";
+      } else if (stage === "third") {
+        prefix = "3L-";
+      } else if (stage === "final") {
+        prefix = "FN-";
+      }
+
+      try {
+        // Buscar confrontos existentes para contar
+        const matchesSnap = await window.db.collection("matches").get();
+        let count = 0;
+        matchesSnap.forEach(doc => {
+          const d = doc.data();
+          if (d.stage === stage) {
+            if (stage !== "groups" || d.group === group) {
+              count++;
+            }
+          }
+        });
+        codeInput.value = `${prefix}${count + 1}`;
+      } catch (e) {
+        console.error("Erro ao autogerar código de confronto:", e);
+        codeInput.value = `${prefix}1`;
+      }
     }
 
     async function saveMatch(e) {

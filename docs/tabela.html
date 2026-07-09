@@ -124,11 +124,42 @@
 
         const renderGroupTable = (group, tbodyId) => {
           const groupPlayers = players.filter(p => p.group === group);
-          const rows = groupPlayers.map(p => ({
-            id: p.id,
-            name: p.name,
-            ...computeStats(p.id)
-          }));
+          
+          // Passo 1: Calcular estatísticas básicas (incluindo pontos)
+          const playerStats = {};
+          groupPlayers.forEach(p => {
+            playerStats[p.id] = {
+              id: p.id,
+              name: p.name,
+              ...computeStats(p.id)
+            };
+          });
+
+          // Passo 2: Calcular Sonneborn-Berger (SB) para cada jogador do grupo
+          groupPlayers.forEach(p => {
+            let sb = 0;
+            const matches = groupMatches.filter(m => 
+              (m.aId === p.id || m.bId === p.id) && m.status === "finished"
+            );
+
+            matches.forEach(m => {
+              const oppId = (m.aId === p.id) ? m.bId : m.aId;
+              const opponent = playerStats[oppId];
+              if (!opponent) return;
+
+              if (m.result === "draw") {
+                sb += opponent.points / 2;
+              } else {
+                const won = (m.aId === p.id && m.result === "A") || (m.bId === p.id && m.result === "B");
+                if (won) {
+                  sb += opponent.points;
+                }
+              }
+            });
+            playerStats[p.id].sb = sb;
+          });
+
+          const rows = Object.values(playerStats);
 
           // Primeiro desempate: Confronto Direto (H2H)
           const headToHeadCompare = (aId, bId) => {
@@ -145,7 +176,9 @@
             if (b.points !== a.points) return b.points - a.points;
             const h2h = headToHeadCompare(a.id, b.id);
             if (h2h !== 0) return h2h;
-            return (b.wins - a.wins) || a.name.localeCompare(b.name);
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            if (b.sb !== a.sb) return b.sb - a.sb; // Critério Sonneborn-Berger
+            return a.name.localeCompare(b.name);
           };
 
           rows.sort(compare);
