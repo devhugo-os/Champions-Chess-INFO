@@ -90,6 +90,14 @@
             </div>
           </div>
 
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="match-type">Tipo de Partida</label>
+            <select id="match-type" class="form-control">
+              <option value="online">Online (Tabuleiro do Site)</option>
+              <option value="presencial">Presencial (Mesa Física)</option>
+            </select>
+          </div>
+
           <div class="row" id="result-status-area" style="display:none; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
             <div class="form-group">
               <label for="match-status">Status da Partida</label>
@@ -595,6 +603,8 @@
       const stage = document.getElementById("match-stage").value;
       const group = document.getElementById("match-group").value;
       const date = document.getElementById("match-date").value;
+      const code = document.getElementById("match-code").value.trim();
+      const type = document.getElementById("match-type").value;
       if (stage === "groups") {
         const playerA = players.find(p => p.id === aId);
         const playerB = players.find(p => p.id === bId);
@@ -655,18 +665,18 @@
           } else {
             // Apenas update simples (se já finalizado ou não sendo finalizado)
             await matchRef.update({
-              aId, bId, stage, group, date, code, status, result
+              aId, bId, stage, group, date, code, status, result, type
             });
           }
         } else {
           // Criação
           const newDoc = window.db.collection("matches").doc();
           await newDoc.set({
-            aId, bId, stage, group, date, code,
+            aId, bId, stage, group, date, code, type,
             status: "scheduled",
             result: "",
-            aReady: false,
-            bReady: false,
+            readyA: false,
+            readyB: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
         }
@@ -807,12 +817,32 @@
 
       document.getElementById("match-status").value = m.status || "scheduled";
       document.getElementById("match-result").value = m.result || "";
+      document.getElementById("match-type").value = m.type || "online";
 
       document.getElementById("result-status-area").style.display = "grid";
       
       document.getElementById("match-form-title").textContent = "📝 Editar Partida";
       document.getElementById("btn-submit-match").textContent = "Atualizar Partida";
       document.getElementById("btn-cancel-edit").style.display = "inline-block";
+
+      // Autodetectar resultado do tabuleiro online do site
+      if ((m.type || "online") === "online") {
+        window.rtdb.ref("matches_games/" + m.id).get().then((snapshot) => {
+          const gameData = snapshot.val();
+          if (gameData && gameData.status === "finished" && gameData.winner) {
+            let autoWinner = "";
+            if (gameData.winner === "w") autoWinner = "A";
+            else if (gameData.winner === "b") autoWinner = "B";
+            else if (gameData.winner === "draw") autoWinner = "draw";
+
+            if (autoWinner) {
+              document.getElementById("match-result").value = autoWinner;
+              document.getElementById("match-status").value = "finished";
+              alert("🔍 Resultado do tabuleiro online detectado! Vencedor pré-selecionado: " + (autoWinner === "draw" ? "Empate" : "Jogador " + autoWinner));
+            }
+          }
+        }).catch(err => console.error("Erro ao ler status da partida online:", err));
+      }
 
       document.getElementById("match-form").scrollIntoView({ behavior: "smooth" });
     }

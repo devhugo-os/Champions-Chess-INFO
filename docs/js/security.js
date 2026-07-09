@@ -1,14 +1,27 @@
 // security.js — Bloqueio de console, F12, clique direito e atalhos de inspeção
 
 (function() {
+  function isUserAdmin() {
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        return (user.role === "admin" || user.isAdmin === true);
+      }
+    } catch (e) {}
+    return false;
+  }
+
   // Desabilitar clique direito
   document.addEventListener("contextmenu", (e) => {
+    if (isUserAdmin()) return;
     e.preventDefault();
     showNotice();
   });
 
   // Desabilitar atalhos de desenvolvedor
   document.addEventListener("keydown", (e) => {
+    if (isUserAdmin()) return;
     // F12
     if (e.key === "F12" || e.keyCode === 123) {
       e.preventDefault();
@@ -65,6 +78,7 @@
 
   // Truque do Debugger infinito para atrapalhar inspeção caso consigam forçar a abertura
   setInterval(function() {
+    if (isUserAdmin()) return;
     (function() {
       try {
         (function a(i) {
