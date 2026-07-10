@@ -337,6 +337,8 @@
       const matchRef = window.db.collection("matches").doc(matchId);
 
       try {
+        let raffleResult = null;
+
         await window.db.runTransaction(async (transaction) => {
           const matchDoc = await transaction.get(matchRef);
           if (!matchDoc.exists) throw new Error("Confronto não existe.");
@@ -349,13 +351,34 @@
           if (isPlayerA) updates.readyA = choice;
           if (isPlayerB) updates.readyB = choice;
 
+          // Verificar se ambos estão prontos após este update
+          const finalReadyA = isPlayerA ? choice : data.readyA;
+          const finalReadyB = isPlayerB ? choice : data.readyB;
+
+          if (finalReadyA && finalReadyB) {
+            // Se as escolhas forem iguais, define o tipo de partida
+            if (finalReadyA === finalReadyB) {
+              updates.type = finalReadyA;
+            } else {
+              // Se forem diferentes, faz o sorteio!
+              raffleResult = Math.random() < 0.5 ? "online" : "presencial";
+              updates.type = raffleResult;
+              updates.raffleResult = raffleResult;
+            }
+          }
+
           transaction.update(matchRef, updates);
         });
 
-        alert("Seu estado de prontidão e escolha foram salvos!");
+        if (raffleResult) {
+          const label = raffleResult === "online" ? "💻 Online (Site)" : "🤝 Presencial (Mesa Física)";
+          window.customAlert(`🎲 Escolhas divergentes detectadas! O sorteio determinou que a partida será: **${label}**.`);
+        } else {
+          window.customAlert("Seu estado de prontidão e formato de preferência foram salvos!");
+        }
       } catch (error) {
         console.error("Erro ao atualizar prontidão:", error);
-        alert("Erro ao enviar estado de pronto. Tente novamente.");
+        window.customAlert("Erro ao enviar estado de pronto. Tente novamente.");
       }
     }
 
