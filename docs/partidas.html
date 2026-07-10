@@ -70,7 +70,14 @@
           clearInterval(interval);
           window.auth.onAuthStateChanged((user) => {
             if (user) {
-              initPartidas();
+              window.db.collection("users").doc(user.uid).get().then((doc) => {
+                if (doc.exists) {
+                  currentUser = { uid: user.uid, ...doc.data() };
+                } else {
+                  currentUser = user;
+                }
+                initPartidas();
+              });
             }
           });
         }

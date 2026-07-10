@@ -354,6 +354,19 @@
     });
 
     async function loadPanelData() {
+      // Sincronizar versão atual no Realtime Database do Firebase
+      const CURRENT_VERSION = "1.6.9";
+      if (window.rtdb) {
+        window.rtdb.ref("metadata/version").get().then((snap) => {
+          const val = snap.val();
+          if (val !== CURRENT_VERSION) {
+            window.rtdb.ref("metadata/version").set(CURRENT_VERSION).then(() => {
+              console.log("Versão do site sincronizada no RTDB: " + CURRENT_VERSION);
+            }).catch(err => console.error("Erro ao sincronizar versão no RTDB:", err));
+          }
+        }).catch(err => console.error("Erro ao consultar versão no RTDB:", err));
+      }
+
       try {
         // 1. Carregar jogadores
         window.db.collection("players").onSnapshot(snapshot => {

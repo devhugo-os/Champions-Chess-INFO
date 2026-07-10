@@ -167,7 +167,7 @@ function renderNavigation() {
     </div>
     <div class="drawer-footer">
       ${user ? `<button id="btn-mobile-logout" class="btn btn-ghost" style="width:100%; justify-content:center;">Sair da Conta</button>` : ''}
-      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.7</span>
+      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.9</span>
     </div>
   `;
 
@@ -275,7 +275,7 @@ function renderNavigation() {
       <div style="display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;">
         <span>© Champions Chess INFO</span>
         <button onclick="showChangelogModal()" class="btn btn-ghost" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          📋 Versão v1.6.7 (Histórico de Alterações)
+          📋 Versão v1.6.9 (Histórico de Alterações)
         </button>
       </div>
     `;
@@ -294,7 +294,14 @@ window.showChangelogModal = function() {
         <h2 style="margin-bottom: 20px; font-weight: 800; text-align: center; background: linear-gradient(135deg, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Histórico de Alterações</h2>
         
         <div style="overflow-y: auto; flex-grow: 1; text-align: left; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.7 (Atual)</h4>
+          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.9 (Atual)</h4>
+          <ul style="margin-bottom: 16px; padding-left: 20px;">
+            <li>Sincronização de Sessão (currentUser): Corrigido o carregamento assíncrono do perfil do usuário logado na aba de partidas para evitar erros ao votar no matchmaking.</li>
+            <li>Automação de Versão do RTDB: Implementada verificação que sincroniza a versão local do site no Realtime Database do Firebase assim que o Administrador acessa o painel admin.html.</li>
+            <li>Ocultação de Inscrições para Admins: Escondida a aba de solicitação de inscrição e participação no torneio no perfil de usuários administradores.</li>
+          </ul>
+
+          <h4 style="color: var(--secondary-color); margin-bottom: 4px;">Versão v1.6.7</h4>
           <ul style="margin-bottom: 16px; padding-left: 20px;">
             <li>Contagem Regressiva de Atualização: Adicionado temporizador forçado de 5 segundos para recarregar automaticamente o site em nova versão.</li>
             <li>Redirecionamento Automático: Jogadores que marcam prontidão são direcionados de forma automática para a tela do jogo quando o status vira "AO VIVO".</li>

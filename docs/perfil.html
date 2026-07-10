@@ -214,7 +214,7 @@
         </button>
       `;
 
-      if (role === "admin") {
+      if (role === "admin" || profileData.isAdmin === true) {
         document.getElementById("tournament-participation-card").style.display = "none";
         return;
       }
