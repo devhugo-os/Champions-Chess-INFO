@@ -93,6 +93,7 @@
           <div class="form-group" style="margin-bottom:12px; display:none;">
             <label for="match-type">Tipo de Partida</label>
             <select id="match-type" class="form-control">
+              <option value="">A Decidir pelos Jogadores</option>
               <option value="online">Online (Tabuleiro do Site)</option>
               <option value="presencial">Presencial (Mesa Física)</option>
             </select>
@@ -764,11 +765,12 @@
           // Criação
           const newDoc = window.db.collection("matches").doc();
           await newDoc.set({
-            aId, bId, stage, group, date, code, type,
+            aId, bId, stage, group, date, code,
+            type: type || "",
             status: "scheduled",
             result: "",
-            readyA: false,
-            readyB: false,
+            readyA: "",
+            readyB: "",
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
         }
@@ -918,7 +920,7 @@
 
       document.getElementById("match-status").value = m.status || "scheduled";
       document.getElementById("match-result").value = m.result || "";
-      document.getElementById("match-type").value = m.type || "online";
+      document.getElementById("match-type").value = m.type || "";
 
       document.getElementById("result-status-area").style.display = "grid";
       

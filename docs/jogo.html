@@ -347,11 +347,20 @@
         if (userStr) currentUser = JSON.parse(userStr);
       } catch (e) {}
 
-      // Aguardar inicialização do banco
+      // Aguardar inicialização do banco e autenticação
       const interval = setInterval(() => {
-        if (window.db && window.rtdb) {
+        if (window.db && window.rtdb && window.auth) {
           clearInterval(interval);
-          initGameSession();
+          window.auth.onAuthStateChanged((user) => {
+            if (user) {
+              // Atualiza o objeto do usuário com os dados do Auth
+              currentUser = user;
+              initGameSession();
+            } else {
+              alert("Por favor, faça login para acessar a partida.");
+              window.location.href = "login.html";
+            }
+          });
         }
       }, 100);
     });

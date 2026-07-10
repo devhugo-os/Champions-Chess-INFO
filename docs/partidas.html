@@ -254,7 +254,7 @@
 
       let adminActionHtml = "";
       const isUserAdmin = currentUser && (currentUser.role === "admin" || currentUser.isAdmin === true);
-      if (isUserAdmin) {
+      if (isUserAdmin && !isOnline) {
         adminActionHtml = `
           <button class="btn btn-ghost" onclick="editMatchRecording('${m.id}', '${m.recordingUrl || ""}')" style="margin-top:8px; width:100%; display:block; padding: 6px; font-size:11px; border: 1px dashed var(--border-color); border-radius:6px; cursor:pointer;">
             ⚙️ Editar Gravação
