@@ -108,7 +108,7 @@
 
             // Redirecionamento automático se a partida do jogador logado estiver AO VIVO (live) e online
             if (currentUser && m.status === "live" && m.type === "online" && (currentUser.uid === m.aId || currentUser.uid === m.bId)) {
-              window.location.href = `jogo.html?id=${m.id}`;
+              window.location.href = `jogo.html?matchId=${m.id}`;
             }
           });
           renderMatches();
