@@ -84,7 +84,7 @@
               <input type="datetime-local" id="match-date" class="form-control">
             </div>
             
-            <div class="form-group">
+            <div class="form-group" style="display: none;">
               <label for="match-code">Código Partida (Gerado Automaticamente)</label>
               <input type="text" id="match-code" class="form-control" readonly placeholder="Código automático" style="background-color: var(--bg-secondary); color: var(--text-muted); cursor: not-allowed;">
             </div>
@@ -312,6 +312,24 @@
           document.getElementById("match-group").value = "";
         }
       });
+
+      const updateMatchGroupFromPlayers = () => {
+        const stage = document.getElementById("match-stage").value;
+        const aId = document.getElementById("match-a").value;
+        const bId = document.getElementById("match-b").value;
+
+        if (stage === "groups" && aId && bId) {
+          const playerA = players.find(p => p.id === aId);
+          const playerB = players.find(p => p.id === bId);
+          if (playerA && playerB && playerA.group === playerB.group) {
+            document.getElementById("match-group").value = playerA.group;
+            autoGenerateMatchCode();
+          }
+        }
+      };
+
+      document.getElementById("match-a").addEventListener("change", updateMatchGroupFromPlayers);
+      document.getElementById("match-b").addEventListener("change", updateMatchGroupFromPlayers);
 
       // Submit do form de jogadores
       document.getElementById("player-form").addEventListener("submit", savePlayer);

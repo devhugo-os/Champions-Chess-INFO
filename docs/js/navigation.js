@@ -167,7 +167,7 @@ function renderNavigation() {
     </div>
     <div class="drawer-footer">
       ${user ? `<button id="btn-mobile-logout" class="btn btn-ghost" style="width:100%; justify-content:center;">Sair da Conta</button>` : ''}
-      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.4</span>
+      <span style="font-size:11px; text-align:center; color:var(--text-muted);">Champions Chess INFO v1.6.5</span>
     </div>
   `;
 
@@ -275,7 +275,7 @@ function renderNavigation() {
       <div style="display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center;">
         <span>© Champions Chess INFO</span>
         <button onclick="showChangelogModal()" class="btn btn-ghost" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-          📋 Versão v1.6.4 (Histórico de Alterações)
+          📋 Versão v1.6.5 (Histórico de Alterações)
         </button>
       </div>
     `;
@@ -294,7 +294,17 @@ window.showChangelogModal = function() {
         <h2 style="margin-bottom: 20px; font-weight: 800; text-align: center; background: linear-gradient(135deg, #fff, var(--accent-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Histórico de Alterações</h2>
         
         <div style="overflow-y: auto; flex-grow: 1; text-align: left; padding-right: 8px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.4 (Atual)</h4>
+          <h4 style="color: var(--accent-color); margin-bottom: 4px;">Versão v1.6.5 (Atual)</h4>
+          <ul style="margin-bottom: 16px; padding-left: 20px;">
+            <li>Controle de Presença e W.O. (5 min): Jogadores têm 5 minutos para entrar na página do tabuleiro. Vitória automática por W.O. se o oponente não comparecer, ou adiamento se ambos faltarem.</li>
+            <li>Relógio de Xadrez Rápido (10 min): Cada jogador tem 10 minutos para toda a partida. Perda automática por tempo se o relógio zerar.</li>
+            <li>Sincronização Direta de Resultados: Partidas online finalizadas no tabuleiro atualizam automaticamente seu status no Firestore e pontuações do campeonato.</li>
+            <li>Melhorias no Admin & Grupo Automático: Habilitada a seleção automática do grupo ao escalar jogadores do mesmo grupo. O código de rodada foi ocultado do formulário para evitar poluição visual.</li>
+            <li>Exibição Limpa de Comunicados: Removidos asteriscos brutos (**) do corpo dos comunicados, substituindo-os por formatação em negrito automatizada.</li>
+            <li>Ampliação do Tabuleiro Mobile: Aumentado o tamanho máximo do tabuleiro para 345px no celular para melhor precisão dos lances.</li>
+          </ul>
+
+          <h4 style="color: var(--secondary-color); margin-bottom: 4px;">Versão v1.6.4</h4>
           <ul style="margin-bottom: 16px; padding-left: 20px;">
             <li>Centralização do Tabuleiro: Redesenhado o dimensionamento responsivo do tabuleiro para evitar transbordamento lateral e centralizá-lo perfeitamente no mobile.</li>
             <li>Correção Histórica das Jogadas: Solucionada a falha onde o histórico de lances era substituído a cada nova jogada. O log agora exibe a lista completa de movimentos sem perdas.</li>

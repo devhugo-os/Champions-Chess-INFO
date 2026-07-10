@@ -82,6 +82,11 @@
       document.getElementById("new-post-form").addEventListener("submit", createPost);
     });
 
+    function parseMarkdown(text) {
+      if (!text) return "";
+      return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    }
+
     function loadPosts() {
       const timeline = document.getElementById("posts-timeline");
 
@@ -111,7 +116,7 @@
                   <span>🕒 Publicado em: <b>${dateStr}</b></span>
                   <span>👤 Autor: <b>${p.authorName || 'Organização'}</b></span>
                 </div>
-                <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line; line-height: 1.6;">${p.body}</div>
+                <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line; line-height: 1.6;">${parseMarkdown(p.body)}</div>
                 ${deleteBtn}
               </div>
             `;

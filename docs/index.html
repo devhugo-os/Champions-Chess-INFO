@@ -150,6 +150,11 @@
           });
 
         // 3. Carregar últimos comunicados (posts)
+        const parseMarkdown = (text) => {
+          if (!text) return "";
+          return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+        };
+
         window.db.collection("posts")
           .orderBy("createdAt", "desc")
           .limit(3)
@@ -168,7 +173,7 @@
                 <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
                   <h3 style="font-size: 16px; margin-bottom: 4px;">${p.title}</h3>
                   <p style="font-size: 12px; margin-bottom: 8px;">Publicado em ${dateStr} por <b>${p.authorName || 'Organizador'}</b></p>
-                  <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line;">${p.body}</div>
+                  <div style="font-size: 14px; color: var(--text-primary); white-space: pre-line;">${parseMarkdown(p.body)}</div>
                 </div>
               `);
             });

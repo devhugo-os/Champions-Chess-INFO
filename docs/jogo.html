@@ -38,10 +38,10 @@
     }
     @media (max-width: 480px) {
       #myBoard {
-        max-width: 290px;
+        max-width: 345px;
       }
       .chess-grid > .card {
-        padding: 10px !important;
+        padding: 8px !important;
       }
     }
     .highlight-hint {
@@ -152,8 +152,13 @@
 
     <div id="game-container" class="chess-grid" style="display: none;">
       <!-- Tabuleiro -->
-      <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px;">
-        <div id="myBoard"></div>
+      <div style="display: flex; flex-direction: column; width: 100%;">
+        <div id="presence-timeout-banner" style="background: rgba(240, 178, 50, 0.15); border: 1px solid var(--warning-color); padding: 12px; border-radius: var(--radius-md); text-align: center; color: #fff; font-weight: 700; font-size: 13px; margin-bottom: 16px; display: none; line-height: 1.4;">
+          ⏳ Aguardando presença dos jogadores. W.O. em <span id="presence-timeout-timer" style="font-family: monospace; font-size: 14px; font-weight: 800; color: var(--warning-color);">5:00</span>
+        </div>
+        <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px;">
+          <div id="myBoard"></div>
+        </div>
       </div>
 
       <!-- Lateral -->
@@ -167,18 +172,20 @@
         <div class="players-box">
           <div class="player-row" id="player-white-row">
             <img class="player-avatar" id="avatar-white" src="https://lh3.googleusercontent.com/a/default-user=s96-c" alt="Avatar"/>
-            <div>
+            <div style="flex-grow: 1;">
               <div style="font-weight: 800; font-size: 14px;" id="name-white">Brancas</div>
               <div style="font-size: 11px; color: var(--text-secondary);">Jogador A</div>
             </div>
+            <div id="clock-white" class="chess-clock" style="font-family: monospace; font-size: 18px; font-weight: 800; color: #fff; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color); display: none;">10:00</div>
           </div>
           <div style="text-align: center; font-size: 12px; color: var(--text-muted); font-weight: 700; margin: 4px 0;">VS</div>
           <div class="player-row" id="player-black-row">
             <img class="player-avatar" id="avatar-black" src="https://lh3.googleusercontent.com/a/default-user=s96-c" alt="Avatar"/>
-            <div>
+            <div style="flex-grow: 1;">
               <div style="font-weight: 800; font-size: 14px;" id="name-black">Pretas</div>
               <div style="font-size: 11px; color: var(--text-secondary);">Jogador B</div>
             </div>
+            <div id="clock-black" class="chess-clock" style="font-family: monospace; font-size: 18px; font-weight: 800; color: #fff; background: rgba(0,0,0,0.3); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border-color); display: none;">10:00</div>
           </div>
         </div>
 
@@ -401,6 +408,92 @@
         // Sincronizar no RTDB (WebSocket)
         gameRef = window.rtdb.ref("matches_games/" + matchId);
         
+        // Obter ou setar liveStartedAt no Firestore
+        let liveStartedAt = matchData.liveStartedAt;
+        if (!liveStartedAt) {
+          liveStartedAt = Date.now();
+          await window.db.collection("matches").doc(matchId).update({
+            liveStartedAt: liveStartedAt
+          });
+        }
+
+        // Marcar presença local no RTDB se for jogador ativo
+        if (playerColor === 'w') {
+          await gameRef.update({ presenceA: true });
+        } else if (playerColor === 'b') {
+          await gameRef.update({ presenceB: true });
+        }
+
+        // Monitorar presenças e gerenciar W.O. / Clocks
+        let presenceInterval = window.setInterval(async () => {
+          const gameSnap = await gameRef.get();
+          const gameData = gameSnap.val();
+          if (!gameData) return;
+
+          const pA = !!gameData.presenceA;
+          const pB = !!gameData.presenceB;
+
+          if (pA && pB) {
+            clearInterval(presenceInterval);
+            document.getElementById("presence-timeout-banner").style.display = "none";
+            document.getElementById("clock-white").style.display = "block";
+            document.getElementById("clock-black").style.display = "block";
+            
+            if (!gameData.clocks) {
+              await gameRef.update({
+                clocks: {
+                  w: 600,
+                  b: 600,
+                  lastUpdated: Date.now()
+                }
+              });
+            }
+            startChessClocksTimer();
+            return;
+          }
+
+          // Tempo decorrido desde liveStartedAt
+          const elapsedMs = Date.now() - liveStartedAt;
+          const remainingSec = Math.max(0, 300 - Math.floor(elapsedMs / 1000));
+
+          if (remainingSec > 0) {
+            document.getElementById("presence-timeout-banner").style.display = "block";
+            const mins = Math.floor(remainingSec / 60);
+            const secs = remainingSec % 60;
+            document.getElementById("presence-timeout-timer").textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+          } else {
+            clearInterval(presenceInterval);
+            document.getElementById("presence-timeout-banner").style.display = "none";
+
+            if (playerColor) {
+              const iAmPresent = (playerColor === 'w' && pA) || (playerColor === 'b' && pB);
+              const opponentPresent = (playerColor === 'w' && pB) || (playerColor === 'b' && pA);
+
+              if (iAmPresent && !opponentPresent) {
+                await gameRef.update({
+                  status: "finished",
+                  winner: playerColor,
+                  wo: true
+                });
+                await syncGameOverToFirestore(playerColor);
+                window.customAlert("Vitória declarada por W.O. (O oponente não compareceu).");
+              } else if (!pA && !pB) {
+                await gameRef.update({
+                  status: "finished",
+                  winner: "none",
+                  wo: true
+                });
+                await window.db.collection("matches").doc(matchId).update({
+                  status: "finished",
+                  result: "postponed"
+                });
+                window.customAlert("Confronto adiado por W.O. duplo (Nenhum jogador compareceu).");
+                window.location.href = "partidas.html";
+              }
+            }
+          }
+        }, 1000);
+
         // Se não existir, o jogador A inicializa
         const gameSnap = await gameRef.get();
         if (!gameSnap.exists()) {
@@ -588,11 +681,26 @@
       }
 
       // Sincronizar via RTDB (WebSocket fallback)
+      const gameSnap = await gameRef.get();
+      const gameData = gameSnap.val();
+      let clocks = gameData && gameData.clocks ? { ...gameData.clocks } : { w: 600, b: 600, lastUpdated: Date.now() };
+
+      const activeTurn = gameData && gameData.turn ? gameData.turn : "w";
+      const elapsedSec = Math.floor((Date.now() - clocks.lastUpdated) / 1000);
+      
+      if (activeTurn === "w") {
+        clocks.w = Math.max(0, clocks.w - elapsedSec);
+      } else {
+        clocks.b = Math.max(0, clocks.b - elapsedSec);
+      }
+      clocks.lastUpdated = Date.now();
+
       const newHistory = game.history();
       await gameRef.update({
         fen: game.fen(),
         turn: game.turn(),
-        history: newHistory
+        history: newHistory,
+        clocks: clocks
       });
 
       checkAndHandleGameOver();
@@ -625,8 +733,11 @@
       await sendMove(source, target);
     }
 
-    // Clique para mover (click-to-move)
-    $(document).on('click', '#myBoard .square-55d63', async function() {
+    // Clique para mover (click-to-move) compatível com toques rápidos no mobile
+    $(document).on('click touchstart', '#myBoard .square-55d63', async function(e) {
+      if (e.type === 'touchstart') {
+        e.preventDefault();
+      }
       if (game.game_over()) return;
       if (!playerColor) return;
       if (game.turn() !== playerColor) return;
@@ -822,6 +933,22 @@
       }
     }
 
+    async function syncGameOverToFirestore(winner) {
+      let firestoreResult = "draw";
+      if (winner === "w") firestoreResult = "A";
+      else if (winner === "b") firestoreResult = "B";
+
+      try {
+        await window.db.collection("matches").doc(matchId).update({
+          status: "finished",
+          result: firestoreResult
+        });
+        console.log("Partida sincronizada como finalizada no Firestore!");
+      } catch (e) {
+        console.error("Erro ao sincronizar fim de jogo no Firestore:", e);
+      }
+    }
+
     async function checkAndHandleGameOver() {
       let status = "playing";
       let winner = "";
@@ -836,6 +963,7 @@
 
       if (status === "finished") {
         await gameRef.update({ status, winner });
+        await syncGameOverToFirestore(winner);
       }
     }
 
@@ -849,7 +977,8 @@
         status: "finished",
         winner: winner
       });
-      alert("Você desistiu da partida.");
+      await syncGameOverToFirestore(winner);
+      window.customAlert("Você desistiu da partida.");
     }
 
     async function proposeDraw() {
@@ -859,16 +988,16 @@
         drawOfferBy: playerColor
       });
 
-      alert("Proposta de empate enviada. Aguardando decisão do oponente.");
+      window.customAlert("Proposta de empate enviada. Aguardando decisão do oponente.");
 
       gameRef.child("drawOfferResponse").on("value", async (snap) => {
         const resp = snap.val();
         if (resp === "accepted") {
           gameRef.child("drawOfferResponse").off();
-          alert("O oponente aceitou o empate!");
+          window.customAlert("O oponente aceitou o empate!");
         } else if (resp === "rejected") {
           gameRef.child("drawOfferResponse").off();
-          alert("O oponente recusou o empate.");
+          window.customAlert("O oponente recusou o empate.");
           await gameRef.child("drawOfferResponse").remove();
           await gameRef.child("drawOfferBy").remove();
         }
@@ -888,6 +1017,7 @@
               status: "finished",
               winner: "draw"
             });
+            await syncGameOverToFirestore("draw");
           } else {
             await gameRef.update({
               drawOfferResponse: "rejected"
@@ -1241,6 +1371,70 @@
       }
 
       document.body.appendChild(overlay);
+    }
+
+    let clocksInterval = null;
+    function startChessClocksTimer() {
+      if (clocksInterval) clearInterval(clocksInterval);
+
+      clocksInterval = window.setInterval(async () => {
+        const gameSnap = await gameRef.get();
+        const gameData = gameSnap.val();
+        if (!gameData || gameData.status !== "playing" || !gameData.clocks) {
+          if (gameData && gameData.status === "finished") {
+            clearInterval(clocksInterval);
+          }
+          return;
+        }
+
+        const activeTurn = gameData.turn || "w";
+        const lastUpdated = gameData.clocks.lastUpdated;
+        const elapsedSec = Math.floor((Date.now() - lastUpdated) / 1000);
+
+        let timeW = gameData.clocks.w;
+        let timeB = gameData.clocks.b;
+
+        if (activeTurn === "w") {
+          timeW = Math.max(0, timeW - elapsedSec);
+        } else {
+          timeB = Math.max(0, timeB - elapsedSec);
+        }
+
+        // Atualizar exibição no cliente
+        updateClockDisplay("w", timeW);
+        updateClockDisplay("b", timeB);
+
+        // Verificar se o tempo de alguém acabou!
+        if (timeW <= 0 && activeTurn === "w") {
+          clearInterval(clocksInterval);
+          if (playerColor === "w" || playerColor === "b") {
+            await gameRef.update({ status: "finished", winner: "b" });
+            await syncGameOverToFirestore("b");
+          }
+        } else if (timeB <= 0 && activeTurn === "b") {
+          clearInterval(clocksInterval);
+          if (playerColor === "w" || playerColor === "b") {
+            await gameRef.update({ status: "finished", winner: "w" });
+            await syncGameOverToFirestore("w");
+          }
+        }
+      }, 1000);
+    }
+
+    function updateClockDisplay(color, timeSec) {
+      const clockEl = document.getElementById(color === "w" ? "clock-white" : "clock-black");
+      if (!clockEl) return;
+      const mins = Math.floor(timeSec / 60);
+      const secs = timeSec % 60;
+      clockEl.textContent = `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+      
+      if (timeSec <= 30) {
+        clockEl.style.color = "var(--danger-color)";
+        clockEl.style.borderColor = "var(--danger-color)";
+      } else {
+        clockEl.style.color = "#fff";
+        clockEl.style.borderColor = "var(--border-color)";
+      }
     }
   </script>
 </body>
