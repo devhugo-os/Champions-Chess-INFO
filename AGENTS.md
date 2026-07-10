@@ -80,12 +80,9 @@ service cloud.firestore {
       // ou atualizar o status da partida para finalizado e o resultado ao término.
       allow update: if request.auth != null && (
         isAdmin() || 
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readyA']) && resource.data.aId == request.auth.uid) ||
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readyB']) && resource.data.bId == request.auth.uid) ||
         (
           (resource.data.aId == request.auth.uid || resource.data.bId == request.auth.uid) &&
-          request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'result']) &&
-          request.resource.data.status == 'finished'
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readyA', 'readyB', 'type', 'status', 'result', 'raffleResult'])
         )
       );
       allow write: if isAdmin();

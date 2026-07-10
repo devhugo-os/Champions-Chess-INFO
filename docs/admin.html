@@ -319,21 +319,35 @@
 
       const updateMatchGroupFromPlayers = () => {
         const stage = document.getElementById("match-stage").value;
+        if (stage !== "groups") return;
+
         const aId = document.getElementById("match-a").value;
         const bId = document.getElementById("match-b").value;
 
-        if (stage === "groups" && aId && bId) {
+        let groupToSet = "";
+        if (aId) {
           const playerA = players.find(p => p.id === aId);
+          if (playerA) groupToSet = playerA.group;
+        } else if (bId) {
           const playerB = players.find(p => p.id === bId);
-          if (playerA && playerB && playerA.group === playerB.group) {
-            document.getElementById("match-group").value = playerA.group;
-            autoGenerateMatchCode();
-          }
+          if (playerB) groupToSet = playerB.group;
+        }
+
+        if (groupToSet) {
+          document.getElementById("match-group").value = groupToSet;
+          autoGenerateMatchCode();
+          populatePlayersSelects(groupToSet);
         }
       };
 
-      document.getElementById("match-a").addEventListener("change", updateMatchGroupFromPlayers);
-      document.getElementById("match-b").addEventListener("change", updateMatchGroupFromPlayers);
+      document.getElementById("match-a").addEventListener("change", () => {
+        updateMatchGroupFromPlayers();
+        updatePlayerSelectOptions();
+      });
+      document.getElementById("match-b").addEventListener("change", () => {
+        updateMatchGroupFromPlayers();
+        updatePlayerSelectOptions();
+      });
 
       // Submit do form de jogadores
       document.getElementById("player-form").addEventListener("submit", savePlayer);
@@ -480,6 +494,38 @@
       `).join("");
     }
 
+    function updatePlayerSelectOptions() {
+      const selectA = document.getElementById("match-a");
+      const selectB = document.getElementById("match-b");
+      const valA = selectA.value;
+      const valB = selectB.value;
+
+      Array.from(selectA.options).forEach(opt => {
+        opt.disabled = false;
+        opt.style.display = "block";
+      });
+      Array.from(selectB.options).forEach(opt => {
+        opt.disabled = false;
+        opt.style.display = "block";
+      });
+
+      if (valA) {
+        const optB = Array.from(selectB.options).find(opt => opt.value === valA);
+        if (optB) {
+          optB.disabled = true;
+          optB.style.display = "none";
+        }
+      }
+
+      if (valB) {
+        const optA = Array.from(selectA.options).find(opt => opt.value === valB);
+        if (optA) {
+          optA.disabled = true;
+          optA.style.display = "none";
+        }
+      }
+    }
+
     function populatePlayersSelects(filteredGroup = null) {
       const selectA = document.getElementById("match-a");
       const selectB = document.getElementById("match-b");
@@ -501,6 +547,8 @@
 
       if (prevValA) selectA.value = prevValA;
       if (prevValB) selectB.value = prevValB;
+
+      updatePlayerSelectOptions();
     }
 
     async function savePlayer(e) {
@@ -975,6 +1023,7 @@
       document.getElementById("match-form-title").textContent = "📅 Criar Partida";
       document.getElementById("btn-submit-match").textContent = "Salvar Partida";
       document.getElementById("btn-cancel-edit").style.display = "none";
+      populatePlayersSelects(null);
     }
 
     async function deleteMatch(id) {
