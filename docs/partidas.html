@@ -96,7 +96,13 @@
         window.db.collection("matches").onSnapshot(snapshot => {
           allMatches = [];
           snapshot.forEach(doc => {
-            allMatches.push({ id: doc.id, ...doc.data() });
+            const m = { id: doc.id, ...doc.data() };
+            allMatches.push(m);
+
+            // Redirecionamento automático se a partida do jogador logado estiver AO VIVO (live) e online
+            if (currentUser && m.status === "live" && m.type === "online" && (currentUser.uid === m.aId || currentUser.uid === m.bId)) {
+              window.location.href = `jogo.html?id=${m.id}`;
+            }
           });
           renderMatches();
         });
@@ -356,14 +362,20 @@
           const finalReadyB = isPlayerB ? choice : data.readyB;
 
           if (finalReadyA && finalReadyB) {
-            // Se as escolhas forem iguais, define o tipo de partida
+            let finalType = "";
             if (finalReadyA === finalReadyB) {
-              updates.type = finalReadyA;
+              finalType = finalReadyA;
             } else {
               // Se forem diferentes, faz o sorteio!
               raffleResult = Math.random() < 0.5 ? "online" : "presencial";
-              updates.type = raffleResult;
+              finalType = raffleResult;
               updates.raffleResult = raffleResult;
+            }
+            updates.type = finalType;
+
+            // Se o tipo final for online, define a partida como ao vivo
+            if (finalType === "online") {
+              updates.status = "live";
             }
           }
 

@@ -114,7 +114,7 @@ window.addEventListener("DOMContentLoaded", () => {
       // 3. Monitorar versão do site em tempo real (Realtime Database)
       window.rtdb.ref("metadata/version").on("value", (snapshot) => {
         const remoteVersion = snapshot.val();
-        const CURRENT_VERSION = "1.6.6";
+        const CURRENT_VERSION = "1.6.7";
         if (remoteVersion && remoteVersion !== CURRENT_VERSION) {
           showUpdateEnforcementModal(remoteVersion);
         }
@@ -135,12 +135,26 @@ function showUpdateEnforcementModal(newVersion) {
       <p style="font-size: 14.5px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
         Uma nova versão da plataforma está disponível (<b>v${newVersion}</b>). Para garantir a integridade dos saldos, palpites e partidas, você deve atualizar o site.
       </p>
+      <div style="font-size: 14px; font-weight: 700; color: var(--warning-color); margin-bottom: 20px;">
+        Recarregando automaticamente em <span id="update-seconds-counter" style="font-size: 16px; font-weight: 900;">5</span> segundos...
+      </div>
       <button onclick="forceSiteUpdate()" class="btn" style="width: 100%; padding: 14px; font-weight: 800; font-size: 15px; box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);">
         🔄 Recarregar e Atualizar Agora
       </button>
     </div>
   `;
   document.body.appendChild(modal);
+
+  let secondsLeft = 5;
+  const timer = setInterval(() => {
+    secondsLeft--;
+    const counterEl = document.getElementById("update-seconds-counter");
+    if (counterEl) counterEl.textContent = secondsLeft;
+    if (secondsLeft <= 0) {
+      clearInterval(timer);
+      forceSiteUpdate();
+    }
+  }, 1000);
 }
 
 window.forceSiteUpdate = function() {

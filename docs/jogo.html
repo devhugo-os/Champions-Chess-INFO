@@ -156,6 +156,9 @@
         <div id="presence-timeout-banner" style="background: rgba(240, 178, 50, 0.15); border: 1px solid var(--warning-color); padding: 12px; border-radius: var(--radius-md); text-align: center; color: #fff; font-weight: 700; font-size: 13px; margin-bottom: 16px; display: none; line-height: 1.4;">
           ⏳ Aguardando presença dos jogadores. W.O. em <span id="presence-timeout-timer" style="font-family: monospace; font-size: 14px; font-weight: 800; color: var(--warning-color);">5:00</span>
         </div>
+        <div id="hoster-timeout-banner" style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger-color); padding: 12px; border-radius: var(--radius-md); text-align: center; color: #fff; font-weight: 700; font-size: 13px; margin-bottom: 16px; display: none; line-height: 1.4;">
+          ⚠️ O Hoster (Brancas) desconectou! Vitória por W.O. em <span id="hoster-timeout-timer" style="font-family: monospace; font-size: 14px; font-weight: 800; color: var(--danger-color);">5:00</span>
+        </div>
         <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px;">
           <div id="myBoard"></div>
         </div>
@@ -347,15 +350,19 @@
         if (userStr) currentUser = JSON.parse(userStr);
       } catch (e) {}
 
-      // Aguardar inicialização do banco e autenticação
+      // Aguardar inicialização do banco e autenticação de forma única
+      let isSessionInitialized = false;
       const interval = setInterval(() => {
         if (window.db && window.rtdb && window.auth) {
           clearInterval(interval);
-          window.auth.onAuthStateChanged((user) => {
+          const unsubscribe = window.auth.onAuthStateChanged((user) => {
             if (user) {
-              // Atualiza o objeto do usuário com os dados do Auth
-              currentUser = user;
-              initGameSession();
+              if (!isSessionInitialized) {
+                isSessionInitialized = true;
+                currentUser = user;
+                initGameSession();
+                unsubscribe();
+              }
             } else {
               alert("Por favor, faça login para acessar a partida.");
               window.location.href = "login.html";
@@ -429,8 +436,10 @@
         // Marcar presença local no RTDB se for jogador ativo
         if (playerColor === 'w') {
           await gameRef.update({ presenceA: true });
+          gameRef.child("presenceA").onDisconnect().set(false);
         } else if (playerColor === 'b') {
           await gameRef.update({ presenceB: true });
+          gameRef.child("presenceB").onDisconnect().set(false);
         }
 
         // Monitorar presenças e gerenciar W.O. / Clocks
@@ -531,6 +540,23 @@
         };
         board = Chessboard('myBoard', config);
 
+        let hosterLeftInterval = null;
+        let hosterLeftSeconds = 300;
+
+        function showHosterDisconnectedBanner(visible) {
+          const banner = document.getElementById("hoster-timeout-banner");
+          if (banner) banner.style.display = visible ? "block" : "none";
+        }
+
+        function updateHosterTimeoutDisplay(seconds) {
+          const timerEl = document.getElementById("hoster-timeout-timer");
+          if (timerEl) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            timerEl.textContent = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+          }
+        }
+
         // Ouvir alterações do jogo no RTDB (WebSocket fallback)
         gameRef.on("value", (snapshot) => {
           const data = snapshot.val();
@@ -545,6 +571,47 @@
 
           board.position(game.fen());
           updateGameStatusUI(data);
+
+          // Gerenciar desconexão do Hoster (Jogador A / w)
+          const pA = !!data.presenceA;
+
+          if (data.status === "playing" && data.clocks) {
+            if (!pA) {
+              if (!hosterLeftInterval) {
+                showHosterDisconnectedBanner(true);
+                hosterLeftSeconds = 300;
+                hosterLeftInterval = setInterval(async () => {
+                  hosterLeftSeconds--;
+                  updateHosterTimeoutDisplay(hosterLeftSeconds);
+                  if (hosterLeftSeconds <= 0) {
+                    clearInterval(hosterLeftInterval);
+                    hosterLeftInterval = null;
+                    if (playerColor === "b" || playerColor === "w") {
+                      await gameRef.update({
+                        status: "finished",
+                        winner: "b",
+                        woHoster: true
+                      });
+                      await syncGameOverToFirestore("b");
+                      window.customAlert("Vitória declarada por W.O.! O Hoster (Brancas) desconectou e não retornou em 5 minutos.");
+                    }
+                  }
+                }, 1000);
+              }
+            } else {
+              if (hosterLeftInterval) {
+                clearInterval(hosterLeftInterval);
+                hosterLeftInterval = null;
+                showHosterDisconnectedBanner(false);
+              }
+            }
+          } else {
+            if (hosterLeftInterval) {
+              clearInterval(hosterLeftInterval);
+              hosterLeftInterval = null;
+              showHosterDisconnectedBanner(false);
+            }
+          }
         });
 
         // Configurar conexão P2P via WebRTC se for jogador da partida

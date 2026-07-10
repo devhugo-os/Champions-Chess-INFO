@@ -308,6 +308,9 @@
         const wrapper = document.getElementById("match-group-wrapper");
         if (e.target.value === "groups") {
           wrapper.style.display = "block";
+          document.getElementById("match-group").value = "A";
+          autoGenerateMatchCode();
+          updatePlayersFilter();
         } else {
           wrapper.style.display = "none";
           document.getElementById("match-group").value = "";
@@ -617,7 +620,15 @@
         else if (m.result === "draw") resultLabel = "Empate";
         else if (m.result === "postponed") resultLabel = "Adiado";
 
-        const isOnline = m.type === "online" || (m.readyA === "online" && m.readyB === "online");
+        let typeLabel = "⏳ A Decidir";
+        let typeStyle = "background: rgba(255, 255, 255, 0.05); color: var(--text-secondary);";
+        if (m.type === "online" || (m.readyA === "online" && m.readyB === "online")) {
+          typeLabel = "💻 Online";
+          typeStyle = "background: rgba(56,139,253,0.1); color: #58a6ff;";
+        } else if (m.type === "presencial" || (m.readyA === "presencial" && m.readyB === "presencial")) {
+          typeLabel = "🤝 Presencial";
+          typeStyle = "background: rgba(240,178,50,0.1); color: #f0b232;";
+        }
 
         return `
           <tr>
@@ -625,7 +636,7 @@
             <td><b>${playerAName}</b> × <b>${playerBName}</b></td>
             <td><span class="badge" style="background:rgba(56,139,253,0.08); color:#58a6ff;">${stageStr}</span></td>
             <td><span class="chip" style="padding:4px 8px; font-family:monospace; font-size:11px;">${m.code || '—'}</span></td>
-            <td><span class="badge" style="background:${isOnline ? 'rgba(56,139,253,0.1)' : 'rgba(240,178,50,0.1)'}; color:${isOnline ? '#58a6ff' : '#f0b232'};">${isOnline ? "💻 Online" : "🤝 Presencial"}</span></td>
+            <td><span class="badge" style="${typeStyle}">${typeLabel}</span></td>
             <td>${statusBadge}</td>
             <td><b>${resultLabel}</b></td>
             <td>
@@ -694,6 +705,11 @@
       const date = document.getElementById("match-date").value;
       const code = document.getElementById("match-code").value.trim();
       const type = document.getElementById("match-type").value;
+
+      if (aId === bId) {
+        alert("Erro: O Jogador A deve ser diferente do Jogador B! Um jogador não pode jogar contra si mesmo.");
+        return;
+      }
 
       if (stage === "groups") {
         const playerA = players.find(p => p.id === aId);
