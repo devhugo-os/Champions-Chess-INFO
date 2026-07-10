@@ -31,6 +31,47 @@
       border: 4px solid var(--border-color);
       border-radius: var(--radius-md);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      touch-action: none;
+    }
+    #myBoard * {
+      touch-action: none;
+    }
+    .highlight-hint {
+      position: relative;
+    }
+    .highlight-hint::after {
+      content: "";
+      display: block;
+      width: 16px;
+      height: 16px;
+      background-color: rgba(16, 185, 129, 0.6);
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 99;
+    }
+    .highlight-hint-capture {
+      position: relative;
+    }
+    .highlight-hint-capture::after {
+      content: "";
+      display: block;
+      width: 82%;
+      height: 82%;
+      border: 4px solid rgba(239, 68, 68, 0.5);
+      border-radius: 50%;
+      position: absolute;
+      top: 9%;
+      left: 9%;
+      pointer-events: none;
+      z-index: 99;
+    }
+    .selected-square {
+      box-shadow: inset 0 0 0 4px var(--accent-color) !important;
+      background-color: rgba(16, 185, 129, 0.15) !important;
     }
     .game-sidebar {
       display: flex;
@@ -138,6 +179,91 @@
           <h3 style="font-size: 14px; margin-bottom: 8px;">📋 Histórico de Jogadas</h3>
           <div class="moves-container" id="pgn-moves">
             Sem lances realizados.
+          </div>
+        </div>
+
+        <!-- Painel de Replay e Revisão (Somente após partida concluída) -->
+        <div id="replay-review-box" class="card" style="display: none; padding: 16px;">
+          <h3 style="font-size: 14px; margin-bottom: 8px;">🎮 Replay & Revisão de Partida</h3>
+          
+          <!-- Controles de Replay -->
+          <div style="display: flex; justify-content: center; gap: 8px; align-items: center; margin-bottom: 12px; background: rgba(255,255,255,0.03); padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+            <button class="btn btn-ghost" onclick="replayStart()" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">⏮</button>
+            <button class="btn btn-ghost" onclick="replayPrev()" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">◀</button>
+            <span id="replay-step-label" style="font-size: 13px; font-weight: 800; min-width: 70px; display: inline-block; color: #fff;">0 / 0</span>
+            <button class="btn btn-ghost" onclick="replayNext()" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">▶</button>
+            <button class="btn btn-ghost" onclick="replayEnd()" style="padding: 6px 12px; font-size: 14px; cursor: pointer;">⏭</button>
+          </div>
+
+          <!-- Botão de Revisão da Partida -->
+          <button id="btn-run-review" class="btn" style="width: 100%; font-weight: 800; margin-bottom: 12px;" onclick="runGameReview()">🔍 Iniciar Revisão (Estilo Chess.com)</button>
+          
+          <!-- Relatório de Precisão e Classificação -->
+          <div id="review-results" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; text-align: center;">
+              <div style="background: rgba(255, 255, 255, 0.05); padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <div style="font-size: 11px; color: var(--text-secondary);">Brancas</div>
+                <div style="font-size: 20px; font-weight: 800; color: #fff;" id="accuracy-white">--%</div>
+              </div>
+              <div style="background: rgba(16, 185, 129, 0.08); padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <div style="font-size: 11px; color: var(--accent-color);">Pretas</div>
+                <div style="font-size: 20px; font-weight: 800; color: var(--accent-color);" id="accuracy-black">--%</div>
+              </div>
+            </div>
+
+            <!-- Tabela comparativa de qualidade de lances -->
+            <style>
+              .review-stat-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 4px 0;
+                font-size: 12px;
+                border-bottom: 1px solid rgba(255,255,255,0.03);
+              }
+              .review-badge {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                font-size: 10px;
+                font-weight: bold;
+                color: #fff;
+                margin-right: 6px;
+              }
+            </style>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div class="review-stat-row">
+                <div><span class="review-badge" style="background:#3b82f6;">🔵</span> Brilhante</div>
+                <div style="font-family: monospace; font-weight:800;"><span id="brilliant-white" style="color:#fff;">0</span> | <span id="brilliant-black" style="color:var(--accent-color);">0</span></div>
+              </div>
+              <div class="review-stat-row">
+                <div><span class="review-badge" style="background:#f59e0b;">🌟</span> Genial</div>
+                <div style="font-family: monospace; font-weight:800;"><span id="genius-white" style="color:#fff;">0</span> | <span id="genius-black" style="color:var(--accent-color);">0</span></div>
+              </div>
+              <div class="review-stat-row">
+                <div><span class="review-badge" style="background:#10b981;">🟢</span> Excelente</div>
+                <div style="font-family: monospace; font-weight:800;"><span id="excellent-white" style="color:#fff;">0</span> | <span id="excellent-black" style="color:var(--accent-color);">0</span></div>
+              </div>
+              <div class="review-stat-row">
+                <div><span class="review-badge" style="background:#84cc16;">🟢</span> Bom</div>
+                <div style="font-family: monospace; font-weight:800;"><span id="good-white" style="color:#fff;">0</span> | <span id="good-black" style="color:var(--accent-color);">0</span></div>
+              </div>
+              <div class="review-stat-row">
+                <div><span class="review-badge" style="background:#eab308;">🟡</span> Inconsistência</div>
+                <div style="font-family: monospace; font-weight:800;"><span id="inaccuracy-white" style="color:#fff;">0</span> | <span id="inaccuracy-black" style="color:var(--accent-color);">0</span></div>
+              </div>
+              <div class="review-stat-row">
+                <div><span class="review-badge" style="background:#f97316;">🔴</span> Erro</div>
+                <div style="font-family: monospace; font-weight:800;"><span id="mistake-white" style="color:#fff;">0</span> | <span id="mistake-black" style="color:var(--accent-color);">0</span></div>
+              </div>
+              <div class="review-stat-row" style="border-bottom:none;">
+                <div><span class="review-badge" style="background:#ef4444;">🔴</span> Erro Grave</div>
+                <div style="font-family: monospace; font-weight:800;"><span id="blunder-white" style="color:#fff;">0</span> | <span id="blunder-black" style="color:var(--accent-color);">0</span></div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -417,25 +543,30 @@
       };
     }
 
-    function onDragStart(source, piece, position, orientation) {
-      if (game.game_over()) return false;
-      if (!playerColor) return false;
-      if (game.turn() !== playerColor) return false;
-      if ((playerColor === 'w' && piece.search(/^b/) !== -1) ||
-          (playerColor === 'b' && piece.search(/^w/) !== -1)) {
-        return false;
-      }
+    let selectedSquare = null;
+
+    function removeHighlights() {
+      $('#myBoard .square-55d63').removeClass('highlight-hint highlight-hint-capture');
     }
 
-    async function onDrop(source, target) {
-      let move = game.move({
-        from: source,
-        to: target,
-        promotion: 'q'
+    function highlightValidMoves(square) {
+      removeHighlights();
+      const moves = game.moves({
+        square: square,
+        verbose: true
       });
 
-      if (move === null) return 'snapback';
+      moves.forEach(move => {
+        const $targetSquare = $('#myBoard .square-' + move.to);
+        if (game.get(move.to)) {
+          $targetSquare.addClass('highlight-hint-capture');
+        } else {
+          $targetSquare.addClass('highlight-hint');
+        }
+      });
+    }
 
+    async function sendMove(source, target) {
       // Tentar enviar via P2P (WebRTC DataChannel) para latência mínima
       if (dataChannel && dataChannel.readyState === "open") {
         dataChannel.send(JSON.stringify({
@@ -457,8 +588,134 @@
       checkAndHandleGameOver();
     }
 
+    function onDragStart(source, piece, position, orientation) {
+      if (game.game_over()) return false;
+      if (!playerColor) return false;
+      if (game.turn() !== playerColor) return false;
+      if ((playerColor === 'w' && piece.search(/^b/) !== -1) ||
+          (playerColor === 'b' && piece.search(/^w/) !== -1)) {
+        return false;
+      }
+      highlightValidMoves(source);
+    }
+
+    async function onDrop(source, target) {
+      removeHighlights();
+      $('#myBoard .square-55d63').removeClass('selected-square');
+      selectedSquare = null;
+
+      let move = game.move({
+        from: source,
+        to: target,
+        promotion: 'q'
+      });
+
+      if (move === null) return 'snapback';
+
+      await sendMove(source, target);
+    }
+
+    // Clique para mover (click-to-move)
+    $(document).on('click', '#myBoard .square-55d63', async function() {
+      if (game.game_over()) return;
+      if (!playerColor) return;
+      if (game.turn() !== playerColor) return;
+
+      const square = $(this).attr('data-square');
+      if (!square) return;
+
+      if (selectedSquare) {
+        if (selectedSquare === square) {
+          removeHighlights();
+          $('#myBoard .square-55d63').removeClass('selected-square');
+          selectedSquare = null;
+          return;
+        }
+
+        let move = game.move({
+          from: selectedSquare,
+          to: square,
+          promotion: 'q'
+        });
+
+        if (move !== null) {
+          board.position(game.fen());
+          removeHighlights();
+          $('#myBoard .square-55d63').removeClass('selected-square');
+          const fromSquare = selectedSquare;
+          selectedSquare = null;
+
+          await sendMove(fromSquare, square);
+          return;
+        }
+      }
+
+      const piece = game.get(square);
+      if (piece && piece.color === playerColor) {
+        removeHighlights();
+        $('#myBoard .square-55d63').removeClass('selected-square');
+        selectedSquare = square;
+        $(this).addClass('selected-square');
+        highlightValidMoves(square);
+      } else {
+        removeHighlights();
+        $('#myBoard .square-55d63').removeClass('selected-square');
+        selectedSquare = null;
+      }
+    });
+
     function onSnapEnd() {
       board.position(game.fen());
+    }
+
+    let replayHistory = [];
+    let replayIndex = -1;
+    let isGameOver = false;
+
+    function updateReplayLabel() {
+      const label = document.getElementById("replay-step-label");
+      if (replayHistory.length === 0) {
+        label.textContent = "0 / 0";
+        return;
+      }
+      label.textContent = `${replayIndex + 1} / ${replayHistory.length}`;
+      
+      $('.pgn-move-row').css('background', 'none');
+      if (replayIndex >= 0) {
+        $(`#move-row-${replayIndex}`).css('background', 'rgba(16, 185, 129, 0.15)');
+      }
+    }
+
+    function goToReplayMove(index) {
+      if (index < -1 || index >= replayHistory.length) return;
+      replayIndex = index;
+      
+      const tempGame = new Chess();
+      for (let i = 0; i <= index; i++) {
+        tempGame.move(replayHistory[i]);
+      }
+      board.position(tempGame.fen());
+      updateReplayLabel();
+    }
+
+    function replayStart() {
+      goToReplayMove(-1);
+    }
+
+    function replayPrev() {
+      if (replayIndex > -1) {
+        goToReplayMove(replayIndex - 1);
+      }
+    }
+
+    function replayNext() {
+      if (replayIndex < replayHistory.length - 1) {
+        goToReplayMove(replayIndex + 1);
+      }
+    }
+
+    function replayEnd() {
+      goToReplayMove(replayHistory.length - 1);
     }
 
     function updateGameStatusUI(gameData) {
@@ -470,7 +727,33 @@
       whiteRow.classList.remove("active-turn");
       blackRow.classList.remove("active-turn");
 
+      // Sempre preencher o histórico de lances
+      if (gameData.history && gameData.history.length > 0) {
+        let pgnHtml = "";
+        for (let i = 0; i < gameData.history.length; i += 2) {
+          const moveNum = Math.floor(i / 2) + 1;
+          const wMove = gameData.history[i];
+          const bMove = gameData.history[i + 1] || "";
+          
+          // Se houver selos de qualidade de lances (da revisão), exibi-los
+          const wEval = (gameData.evaluations && gameData.evaluations[i]) ? gameData.evaluations[i].badge : "";
+          const bEval = (gameData.evaluations && gameData.evaluations[i + 1]) ? gameData.evaluations[i + 1].badge : "";
+          
+          pgnHtml += `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; padding:2px 4px; border-radius:4px; cursor:pointer;" class="pgn-move-row" id="move-row-${i}" onclick="goToReplayMove(${i})">
+              <span><b>${moveNum}.</b> ${wMove} ${wEval}</span>
+              ${bMove ? `<span style="cursor:pointer;" class="pgn-move-row" id="move-row-${i+1}" onclick="event.stopPropagation(); goToReplayMove(${i+1})">${bMove} ${bEval}</span>` : ""}
+            </div>
+          `;
+        }
+        movesContainer.innerHTML = pgnHtml;
+        movesContainer.scrollTop = movesContainer.scrollHeight;
+      } else {
+        movesContainer.innerHTML = "Aguardando primeiro lance...";
+      }
+
       if (gameData.status === "finished") {
+        isGameOver = true;
         banner.className = "turn-indicator turn-w";
         let winnerText = "FIM DE JOGO";
         if (gameData.winner === "draw") {
@@ -483,6 +766,16 @@
         banner.textContent = winnerText;
         banner.style.backgroundColor = "var(--border-color)";
         banner.style.color = "#fff";
+
+        // Exibir replay e revisão
+        document.getElementById("replay-review-box").style.display = "block";
+        document.getElementById("player-game-actions").style.display = "none";
+        
+        replayHistory = gameData.history || [];
+        if (replayIndex === -1 && replayHistory.length > 0) {
+          replayIndex = replayHistory.length - 1;
+        }
+        updateReplayLabel();
         return;
       }
 
@@ -498,20 +791,6 @@
         banner.style.backgroundColor = "rgba(16, 185, 129, 0.15)";
         banner.style.color = "var(--accent-color)";
         blackRow.classList.add("active-turn");
-      }
-
-      if (gameData.history && gameData.history.length > 0) {
-        let pgnHtml = "";
-        for (let i = 0; i < gameData.history.length; i += 2) {
-          const moveNum = Math.floor(i / 2) + 1;
-          const wMove = gameData.history[i];
-          const bMove = gameData.history[i + 1] || "";
-          pgnHtml += `<div><b>${moveNum}.</b> ${wMove} ${bMove}</div>`;
-        }
-        movesContainer.innerHTML = pgnHtml;
-        movesContainer.scrollTop = movesContainer.scrollHeight;
-      } else {
-        movesContainer.innerHTML = "Aguardando primeiro lance...";
       }
     }
 
@@ -589,6 +868,261 @@
         }
       });
     }, 3000);
+
+    const PieceValues = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+
+    const PawnTable = [
+        0,  0,  0,  0,  0,  0,  0,  0,
+       50, 50, 50, 50, 50, 50, 50, 50,
+       10, 10, 20, 30, 30, 20, 10, 10,
+        5,  5, 10, 25, 25, 10,  5,  5,
+        0,  0,  0, 20, 20,  0,  0,  0,
+        5, -5,-10,  0,  0,-10, -5,  5,
+        5, 10, 10,-20,-20, 10, 10,  5,
+        0,  0,  0,  0,  0,  0,  0,  0
+    ];
+
+    const KnightTable = [
+      -50,-40,-30,-30,-30,-30,-40,-50,
+      -40,-20,  0,  0,  0,  0,-20,-40,
+      -30,  0, 10, 15, 15, 10,  0,-30,
+      -30,  5, 15, 20, 20, 15,  5,-30,
+      -30,  0, 15, 20, 20, 15,  0,-30,
+      -30,  5, 10, 15, 15, 10,  5,-30,
+      -40,-20,  0,  5,  5,  0,-20,-40,
+      -50,-40,-30,-30,-30,-30,-40,-50
+    ];
+
+    const BishopTable = [
+      -20,-10,-10,-10,-10,-10,-10,-20,
+      -10,  0,  0,  0,  0,  0,  0,-10,
+      -10,  0,  5, 10, 10,  5,  0,-10,
+      -10,  5,  5, 10, 10,  5,  5,-10,
+      -10,  0, 10, 10, 10, 10,  0,-10,
+      -10, 10, 10, 10, 10, 10, 10,-10,
+      -10,  5,  0,  0,  0,  0,  5,-10,
+      -20,-10,-10,-10,-10,-10,-10,-20
+    ];
+
+    const RookTable = [
+        0,  0,  0,  0,  0,  0,  0,  0,
+        5, 10, 10, 10, 10, 10, 10,  5,
+       -5,  0,  0,  0,  0,  0,  0, -5,
+       -5,  0,  0,  0,  0,  0,  0, -5,
+       -5,  0,  0,  0,  0,  0,  0, -5,
+       -5,  0,  0,  0,  0,  0,  0, -5,
+       -5,  0,  0,  0,  0,  0,  0, -5,
+        0,  0,  0,  5,  5,  0,  0,  0
+    ];
+
+    const QueenTable = [
+      -20,-10,-10, -5, -5,-10,-10,-20,
+      -10,  0,  0,  0,  0,  0,  0,-10,
+      -10,  0,  5,  5,  5,  5,  0,-10,
+       -5,  0,  5,  5,  5,  5,  0, -5,
+        0,  0,  5,  5,  5,  5,  0, -5,
+      -10,  5,  5,  5,  5,  5,  0,-10,
+      -10,  0,  5,  0,  0,  5,  0,-10,
+      -20,-10,-10, -5, -5,-10,-10,-20
+    ];
+
+    const KingTable = [
+      -30,-40,-40,-50,-50,-40,-40,-30,
+      -30,-40,-40,-50,-50,-40,-40,-30,
+      -30,-40,-40,-50,-50,-40,-40,-30,
+      -30,-40,-40,-50,-50,-40,-40,-30,
+      -20,-30,-30,-40,-40,-30,-30,-20,
+      -10,-20,-20,-20,-20,-20,-20,-10,
+       20, 20,  0,  0,  0,  0, 20, 20,
+       20, 30, 10,  0,  0, 10, 30, 20
+    ];
+
+    function evaluateBoard(chessObj) {
+      let score = 0;
+      const boardArr = chessObj.board();
+      
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const piece = boardArr[r][c];
+          if (!piece) continue;
+          
+          const type = piece.type;
+          const color = piece.color;
+          let val = PieceValues[type];
+          
+          let pIdx = r * 8 + c;
+          if (color === 'w') {
+            pIdx = (7 - r) * 8 + c;
+          }
+          
+          let positionalVal = 0;
+          if (type === 'p') positionalVal = PawnTable[pIdx];
+          else if (type === 'n') positionalVal = KnightTable[pIdx];
+          else if (type === 'b') positionalVal = BishopTable[pIdx];
+          else if (type === 'r') positionalVal = RookTable[pIdx];
+          else if (type === 'q') positionalVal = QueenTable[pIdx];
+          else if (type === 'k') positionalVal = KingTable[pIdx];
+          
+          const totalVal = val + positionalVal;
+          if (color === 'w') {
+            score += totalVal;
+          } else {
+            score -= totalVal;
+          }
+        }
+      }
+      return score;
+    }
+
+    function getMaterialScore(chessObj, color) {
+      let score = 0;
+      chessObj.board().forEach(row => {
+        row.forEach(p => {
+          if (p && p.color === color) {
+            score += PieceValues[p.type];
+          }
+        });
+      });
+      return score;
+    }
+
+    async function runGameReview() {
+      const btn = document.getElementById("btn-run-review");
+      btn.disabled = true;
+      btn.textContent = "Analisando partida...";
+
+      const tempGame = new Chess();
+      const evaluations = [];
+      
+      const whiteScores = [];
+      const blackScores = [];
+
+      const stats = {
+        w: { brilliant: 0, genius: 0, excellent: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 },
+        b: { brilliant: 0, genius: 0, excellent: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 }
+      };
+
+      for (let i = 0; i < replayHistory.length; i++) {
+        const turn = tempGame.turn();
+        
+        const matBeforeActive = getMaterialScore(tempGame, turn);
+        const matBeforeOpp = getMaterialScore(tempGame, turn === 'w' ? 'b' : 'w');
+        const evalBefore = turn === 'w' ? evaluateBoard(tempGame) : -evaluateBoard(tempGame);
+
+        const move = tempGame.move(replayHistory[i]);
+        if (!move) continue;
+
+        const matAfterActive = getMaterialScore(tempGame, turn);
+        const matAfterOpp = getMaterialScore(tempGame, turn === 'w' ? 'b' : 'w');
+        const currentEval = turn === 'w' ? evaluateBoard(tempGame) : -evaluateBoard(tempGame);
+
+        const activeLoss = matBeforeActive - matAfterActive;
+        const opponentLoss = matBeforeOpp - matAfterOpp;
+        
+        const isSacrifice = activeLoss > opponentLoss;
+        const evalDiff = currentEval - evalBefore;
+
+        let quality = "excellent";
+        let badge = "🟢";
+        let scoreVal = 100;
+
+        if (isSacrifice && evalDiff >= -30) {
+          quality = "brilliant";
+          badge = "🔵";
+          scoreVal = 100;
+          stats[turn].brilliant++;
+        } else if (evalDiff >= 120) {
+          quality = "genius";
+          badge = "🌟";
+          scoreVal = 100;
+          stats[turn].genius++;
+        } else if (evalDiff >= -10) {
+          quality = "excellent";
+          badge = "🟢";
+          scoreVal = 100;
+          stats[turn].excellent++;
+        } else if (evalDiff >= -45) {
+          quality = "good";
+          badge = "🟢";
+          scoreVal = 85;
+          stats[turn].good++;
+        } else if (evalDiff >= -110) {
+          quality = "inaccuracy";
+          badge = "🟡";
+          scoreVal = 65;
+          stats[turn].inaccuracy++;
+        } else if (evalDiff >= -260) {
+          quality = "mistake";
+          badge = "🔴";
+          scoreVal = 35;
+          stats[turn].mistake++;
+        } else {
+          quality = "blunder";
+          badge = "🔴";
+          scoreVal = 0;
+          stats[turn].blunder++;
+        }
+
+        evaluations.push({
+          quality,
+          badge,
+          scoreVal
+        });
+
+        if (turn === 'w') {
+          whiteScores.push(scoreVal);
+        } else {
+          blackScores.push(scoreVal);
+        }
+      }
+
+      const accuracyWhite = whiteScores.length > 0 ? Math.round(whiteScores.reduce((a, b) => a + b, 0) / whiteScores.length) : 100;
+      const accuracyBlack = blackScores.length > 0 ? Math.round(blackScores.reduce((a, b) => a + b, 0) / blackScores.length) : 100;
+
+      await gameRef.update({
+        evaluations,
+        accuracyWhite,
+        accuracyBlack,
+        stats
+      });
+
+      btn.style.display = "none";
+      displayReviewUI({ evaluations, accuracyWhite, accuracyBlack, stats });
+    }
+
+    function displayReviewUI(data) {
+      document.getElementById("btn-run-review").style.display = "none";
+      document.getElementById("review-results").style.display = "block";
+
+      document.getElementById("accuracy-white").textContent = `${data.accuracyWhite || 100}%`;
+      document.getElementById("accuracy-black").textContent = `${data.accuracyBlack || 100}%`;
+
+      const stats = data.stats || {
+        w: { brilliant: 0, genius: 0, excellent: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 },
+        b: { brilliant: 0, genius: 0, excellent: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0 }
+      };
+
+      document.getElementById("brilliant-white").textContent = stats.w.brilliant;
+      document.getElementById("brilliant-black").textContent = stats.b.brilliant;
+
+      document.getElementById("genius-white").textContent = stats.w.genius;
+      document.getElementById("genius-black").textContent = stats.b.genius;
+
+      document.getElementById("excellent-white").textContent = stats.w.excellent;
+      document.getElementById("excellent-black").textContent = stats.b.excellent;
+
+      document.getElementById("good-white").textContent = stats.w.good;
+      document.getElementById("good-black").textContent = stats.b.good;
+
+      document.getElementById("inaccuracy-white").textContent = stats.w.inaccuracy;
+      document.getElementById("inaccuracy-black").textContent = stats.b.inaccuracy;
+
+      document.getElementById("mistake-white").textContent = stats.w.mistake;
+      document.getElementById("mistake-black").textContent = stats.b.mistake;
+
+      document.getElementById("blunder-white").textContent = stats.w.blunder;
+      document.getElementById("blunder-black").textContent = stats.b.blunder;
+    }
   </script>
 </body>
 </html>

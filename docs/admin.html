@@ -120,10 +120,7 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-bottom:12px;">
-            <label for="match-recording-url">Link da Partida Gravada (Vídeo / Replay)</label>
-            <input type="url" id="match-recording-url" class="form-control" placeholder="https://youtube.com/... ou https://lichess.org/...">
-          </div>
+
 
           <div style="display:flex; gap:10px;">
             <button type="submit" id="btn-submit-match" class="btn" style="flex-grow:1;">Salvar Partida</button>
@@ -287,9 +284,25 @@
       // Submit do form de partidas
       document.getElementById("match-form").addEventListener("submit", saveMatch);
 
-      // Geração automática de código de partida
-      document.getElementById("match-stage").addEventListener("change", autoGenerateMatchCode);
-      document.getElementById("match-group").addEventListener("change", autoGenerateMatchCode);
+      // Geração automática de código de partida e filtragem de jogadores
+      const updatePlayersFilter = () => {
+        const stage = document.getElementById("match-stage").value;
+        const group = document.getElementById("match-group").value;
+        if (stage === "groups" && group) {
+          populatePlayersSelects(group);
+        } else {
+          populatePlayersSelects(null);
+        }
+      };
+
+      document.getElementById("match-stage").addEventListener("change", () => {
+        autoGenerateMatchCode();
+        updatePlayersFilter();
+      });
+      document.getElementById("match-group").addEventListener("change", () => {
+        autoGenerateMatchCode();
+        updatePlayersFilter();
+      });
       document.getElementById("match-stage").addEventListener("change", (e) => {
         const wrapper = document.getElementById("match-group-wrapper");
         if (e.target.value === "groups") {
@@ -445,16 +458,27 @@
       `).join("");
     }
 
-    function populatePlayersSelects() {
+    function populatePlayersSelects(filteredGroup = null) {
       const selectA = document.getElementById("match-a");
       const selectB = document.getElementById("match-b");
       
-      const optionsHtml = `<option value="">Escolha...</option>` + players.map(p => `
+      const prevValA = selectA.value;
+      const prevValB = selectB.value;
+
+      let list = players;
+      if (filteredGroup) {
+        list = players.filter(p => p.group === filteredGroup);
+      }
+
+      const optionsHtml = `<option value="">Escolha...</option>` + list.map(p => `
         <option value="${p.id}">${p.name} (Grupo ${p.group})</option>
       `).join("");
 
       selectA.innerHTML = optionsHtml;
       selectB.innerHTML = optionsHtml;
+
+      if (prevValA) selectA.value = prevValA;
+      if (prevValB) selectB.value = prevValB;
     }
 
     async function savePlayer(e) {
@@ -651,7 +675,6 @@
       const date = document.getElementById("match-date").value;
       const code = document.getElementById("match-code").value.trim();
       const type = document.getElementById("match-type").value;
-      const recordingUrl = document.getElementById("match-recording-url").value.trim();
 
       if (stage === "groups") {
         const playerA = players.find(p => p.id === aId);
@@ -674,7 +697,7 @@
 
           // Atualizar dados comuns primeiro (garante que alterações de jogadores/data/código persistam)
           await matchRef.update({
-            aId, bId, stage, group, date, code, type, recordingUrl
+            aId, bId, stage, group, date, code, type
           });
 
           if (result === "postponed") {
@@ -723,7 +746,7 @@
           // Criação
           const newDoc = window.db.collection("matches").doc();
           await newDoc.set({
-            aId, bId, stage, group, date, code, type, recordingUrl,
+            aId, bId, stage, group, date, code, type,
             status: "scheduled",
             result: "",
             readyA: false,
@@ -852,11 +875,18 @@
       if (!m) return;
 
       document.getElementById("match-id").value = m.id;
-      document.getElementById("match-a").value = m.aId;
-      document.getElementById("match-b").value = m.bId;
       document.getElementById("match-stage").value = m.stage;
       document.getElementById("match-group").value = m.group || "";
       document.getElementById("match-code").value = m.code || "";
+
+      if (m.stage === "groups" && m.group) {
+        populatePlayersSelects(m.group);
+      } else {
+        populatePlayersSelects(null);
+      }
+
+      document.getElementById("match-a").value = m.aId;
+      document.getElementById("match-b").value = m.bId;
       
       document.getElementById("match-group-wrapper").style.display = (m.stage === "groups") ? "block" : "none";
 
@@ -871,7 +901,6 @@
       document.getElementById("match-status").value = m.status || "scheduled";
       document.getElementById("match-result").value = m.result || "";
       document.getElementById("match-type").value = m.type || "online";
-      document.getElementById("match-recording-url").value = m.recordingUrl || "";
 
       document.getElementById("result-status-area").style.display = "grid";
       
@@ -905,7 +934,6 @@
     function cancelMatchEdit() {
       document.getElementById("match-id").value = "";
       document.getElementById("match-form").reset();
-      document.getElementById("match-recording-url").value = "";
       document.getElementById("match-group-wrapper").style.display = "block";
       document.getElementById("result-status-area").style.display = "none";
       document.getElementById("match-form-title").textContent = "📅 Criar Partida";

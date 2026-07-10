@@ -114,7 +114,7 @@ window.addEventListener("DOMContentLoaded", () => {
       // 3. Monitorar versão do site em tempo real (Realtime Database)
       window.rtdb.ref("metadata/version").on("value", (snapshot) => {
         const remoteVersion = snapshot.val();
-        const CURRENT_VERSION = "1.6.2";
+        const CURRENT_VERSION = "1.6.3";
         if (remoteVersion && remoteVersion !== CURRENT_VERSION) {
           showUpdateEnforcementModal(remoteVersion);
         }
